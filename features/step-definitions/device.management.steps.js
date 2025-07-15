@@ -277,3 +277,46 @@ When(/^unmap device from school with overrides:$/, async function (table) {
         }
     }
 });
+
+Then(/^map (\d+) student\(s\) to device and verify status code (\d+)$/, async function (studentCount, expectedStatusCode) {
+  // ... existing code ...
+   const deviceId = this.regResponse?.body?.device_id || this.regResponse?.data?.device_id || this.device_id;
+   //const deviceId = "U028NZ";
+   const schoolCode = testData["school_code"];
+   
+   if (!deviceId) {
+       throw new Error("deviceId not found from previous registration step.");
+   }
+ 
+   // Build endpoint
+   const endpointTemplate = process.env.MAP_STUDENTS_TO_DEVICE_ENDPOINT;
+   const endpoint = endpointTemplate
+       .replace('{school_code}', schoolCode)
+       .replace('{device_id}', deviceId);
+ 
+   // Load request body and get user IDs from test data
+   const requestBody = loadRequestBody("mapStudentsToDevice");
+   const userIds = testData["student_user_ids"].slice(0, parseInt(studentCount));
+   requestBody.user_ids = userIds;
+ 
+   const headers = {
+       'auth': 'EISecret',
+       'Content-Type': 'application/json',
+       'Authorization': `${process.env.ACCESS_TOKEN_UNMAP}`,
+   };
+ 
+   console.log(`${yellow}🎓 Mapping ${studentCount} students to device: ${deviceId}`);
+   console.log(`${yellow}📦 Request Body:`, JSON.stringify(requestBody, null, 2));
+ 
+   this.response = await apiClient.post(endpoint, requestBody, headers);
+   this.mappingResponse = this.response;
+   
+  // Verify status code
+  expect(this.response.status).toEqual(parseInt(expectedStatusCode));
+  console.log(`${green}✅ Mapping API returned status code: ${this.response.status}`);
+  
+  // Store mapped user IDs for verification
+  this.mappedUserIds = userIds;
+});
+  
+  
