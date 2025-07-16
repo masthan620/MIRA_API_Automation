@@ -164,40 +164,38 @@ When('I delete test devices with mobile number {string}', async function (mobile
     const deviceService = serviceFactory.getDbService('devicemanagement', 'public.device_registration');
     
     try {
-        // Count records to be deleted
-        const countQuery = 'SELECT COUNT(*) as count FROM public.device_registration WHERE mobile_number = ?';
-        const countResult = await deviceService.rawQuery(countQuery, [mobileNumber]);
-        const recordCount = countResult.rows[0].count;
-        
-        console.log(`📊 Found ${recordCount} device(s) with mobile number: ${mobileNumber}`);
-        
-        // Delete the records
-        const deleteQuery = 'DELETE FROM public.device_registration WHERE mobile_number = ?';
-        const result = await deviceService.rawQuery(deleteQuery, [mobileNumber]);
-        
-        this.deletedRecordCount = recordCount;
-        this.deleteResult = result;
-        
-        console.log(`🗑️ Successfully deleted ${recordCount} device record(s)`);
-        
+        await deviceService.rawQuery('DELETE FROM public.device_registration WHERE mobile_number = ?', [mobileNumber]);
+        console.log(`🗑️ Deleted test devices with mobile number: ${mobileNumber}`);
     } catch (error) {
-        console.error(`❌ Database cleanup failed: ${error.message}`);
+        console.error(`❌ Cleanup failed: ${error.message}`);
         throw error;
     }
 });
 
-Then('the test data should be successfully deleted from database', function () {
-    expect(this.deleteResult).to.exist;
-    console.log(`✅ Confirmed: ${this.deletedRecordCount} record(s) deleted successfully`);
-});
+Then(/^verify mapped students are present in DB$/, async function () {
+    const deviceId = this.regResponse?.body?.device_id 
+                  || this.regResponse?.data?.data?.device_id 
+                  || this.device_id;
 
-Then('verify no devices exist with mobile number {string}', async function (mobileNumber) {
-    const deviceService = serviceFactory.getDbService('devicemanagement', 'public.device_registration');
-    
-    const query = 'SELECT COUNT(*) as count FROM public.device_registration WHERE mobile_number = ?';
-    const result = await deviceService.rawQuery(query, [mobileNumber]);
-    const remainingCount = parseInt(result.rows[0].count);
-    
-    expect(remainingCount).to.equal(0);
-    console.log(`✅ Verified: No devices exist with mobile number ${mobileNumber}`);
+    const mappedUsers = this.mappedUserIds;
+
+    if (!deviceId || !mappedUsers || mappedUsers.length === 0) {
+        throw new Error("Missing deviceId or mappedUserIds for DB validation.");
+    }
+
+    const deviceService = serviceFactory.getDbService('devicemanagement', 'public.device_user_mapping');
+
+    for (const userId of mappedUsers) {
+        const query = `
+            SELECT * FROM public.device_user_mapping
+            WHERE device_id = ? AND user_id = ? AND active = true
+        `;
+        const result = await deviceService.rawQuery(query, [deviceId, userId]);
+
+        if (!result.rows || result.rows.length === 0) {
+            throw new Error(`❌ User ${userId} is NOT mapped to device ${deviceId} in DB.`);
+        }
+
+        console.log(`✅ DB Check: User ${userId} is correctly mapped to device ${deviceId}`);
+    }
 });
