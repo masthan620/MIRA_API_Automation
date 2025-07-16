@@ -37,7 +37,6 @@
   "school_code": "8435958",
   "already_mapped_msg": "Device is already mapped to the school",
   "unmap_message": "Device successfully unmapped from the school.",
-  "empty_subscription_key_error_code": "DMS9940073J60Y",
   "empty_subscription_key_error_msg": "body: \"subscription_key\" is not allowed to be empty",
   "resource_not_found_msg":"Resource Not Found.",
   "invalid_school_code_msg":"params: school_code must contain only alphanumeric characters",
@@ -85,5 +84,24 @@
   "empty_username_error_message": "Username cannot be empty",
   "login_success_message": "Login successful!",
   "incorrect_password_message": "Incorrect password!",
-  "missing_parameters_message": "Username is required"
+  "device_color_pattern": "^#[A-F0-9]{6}$",
+  "expected_user_count": 0,
+  "user_count": 2,
+  "get_device_success_message": "Device details retrieved successfully",
+  "missing_parameters_message": "Username is required",
+  "invalid_auth_token": "invalid_token_12345",
+  "student_user_ids": ["8000004880", "3000004895"],
+  "user_id_to_username_mapping": {
+    "8000004880": "Masthan.E",
+    "3000004895": "deetya.K",
+    "1000000212": "john.doe",
+    "1000000213": "jane.smith"
+  },
+  "device_type": "student",
+  "projection_fields": "username,device_id",
+  "pagination": {
+    "page": 1,
+    "limit": 100,
+    "is_login_info": true
+  }
 }
