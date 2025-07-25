@@ -12,25 +12,25 @@ Feature: Password Reset Request and change password flow
     Scenario: MIRA-1208 Verify password reset request creation for an admin user with valid inputs
       Given as a student, I send a Reset Password request for user "aarohi.sinha":
         | request_to | admin |
-      And verify that there exists a password reset request record with pending status in DB for user "aarohi.sinha"
+      And a pending password reset request should exist for user "aarohi.sinha" in DB
       Then the response status code should be 200
       And response should have the following properties:
         | success | success_flag                           |
         | message | reset_password_request_success_message |
       Then as an admin, get all password reset requests for school "8435958" and store user_id and request_id for the user "aarohi.sinha" with status "pending"
-      And as a Teacher or Admin, I approve password reset request "{stored_request_id}"
+      And as a teacher, I approve password reset request for the user "aarohi.sinha"
 
     @MIRA-1254
     Scenario: MIRA-1254 Verify password reset request creation for a teacher user with valid inputs
       Given as a student, I send a Reset Password request for user "rahul.patel":
         | request_to | teacher |
-      And verify that there exists a password reset request record with pending status in DB for user "rahul.patel"
+      And a pending password reset request should exist for user "rahul.patel" in DB
       Then the response status code should be 200
       And response should have the following properties:
         | success | success_flag                           |
         | message | reset_password_request_success_message |
       Then as an admin, get all password reset requests for school "8435958" and store user_id and request_id for the user "rahul.patel" with status "pending"
-      And as a Teacher or Admin, I approve password reset request "{stored_request_id}"
+      And as a teacher, I approve password reset request for the user "rahul.patel"
 
     @MIRA-1257
     Scenario: MIRA-1257 Verify API behavior when the username path parameter is missing

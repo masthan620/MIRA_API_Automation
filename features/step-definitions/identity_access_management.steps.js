@@ -15,63 +15,11 @@ import {
   reset,
   makeTimedRequest,
 } from "../../utils/apiClient.js";
-
-// Initialize helper methods once before scenarios
-Before(function () {
-  if (!this.resolveRequestId) {
-    this.resolveRequestId = function (requestId) {
-      if (requestId === "{stored_request_id}" && this.stored_request_id) {
-        console.log(
-          `${yellow} Replaced placeholder with stored request ID: ${this.stored_request_id}`
-        );
-        return this.stored_request_id;
-      } else if (requestId.startsWith("{") && requestId.endsWith("}")) {
-        throw new Error(
-          `Placeholder ${requestId} could not be resolved. Make sure you've stored the request ID first.`
-        );
-      }
-      return requestId;
-    };
-  }
-
-  if (!this.storeUserRequestData) {
-    this.storeUserRequestData = function (username, status) {
-      const responseData = getResponseData(this.response);
-      if (!responseData.data || !Array.isArray(responseData.data)) {
-        throw new Error('Response does not contain a "data" array');
-      }
-
-      const userRequest = responseData.data.find(
-        (req) => req.username === username && req.status === status
-      );
-
-      if (!userRequest) {
-        throw new Error(
-          `No reset request found for user "${username}" with status "${status}"`
-        );
-      }
-
-      if (userRequest.user_id === undefined) {
-        throw new Error(
-          'The field "user_id" does not exist in the reset request'
-        );
-      }
-
-      if (userRequest.id === undefined) {
-        throw new Error('The field "id" does not exist in the reset request');
-      }
-
-      this.stored_user_id = userRequest.user_id;
-      this.stored_request_id = userRequest.id;
-      this.stored_username = username;
-      this.stored_status = status;
-
-      console.log(`${green} Stored user_id: ${this.stored_user_id}`);
-      console.log(`${green} Stored request_id: ${this.stored_request_id}`);
-      console.log(`${green} For username: ${username} with status: ${status}`);
-    };
-  }
-});
+import {
+  storeUserRequestData,
+  resolveRequestId,
+  authenticateUser,
+} from "../helpers/testHelpers.js";
 
 Given(
   /^Send an OTP request using "([^"]*)" request body$/,
@@ -123,8 +71,8 @@ Given(
 );
 
 Given(
-  /^as a student, I send a Reset Password request for user "([^"]*)":$/,
-  async function (username, table) {
+  /^as (a|an) (teacher|admin|student), I send a Reset Password request for user "([^"]*)":$/,
+  async function (article, user_type, username, table) {
     const baseKey = "passwordResetToAdmin/Teacher";
 
     if (!process.env.PASSWORD_RESET_REQUEST_ENDPOINT) {
@@ -170,22 +118,22 @@ Given(
 
     // Handle storage logic if parameters are provided
     if (username && status) {
-      this.storeUserRequestData(username, status);
+      storeUserRequestData(this, username, status);
     }
   }
 );
 
 Given(
-  /^as a Teacher or Admin, I approve password reset request "([^"]*)"$/,
-  async function (requestId) {
+  /^as (a|an) (teacher|admin), I approve password reset request(?: for the user "([^"]*)")?(?: with request_id "([^"]*)")?$/,
+  async function (article, user_type, username, request_id) {
     const baseKey = "password-reset-status";
     if (!process.env.PASSWORD_RESET_HANDLE_ENDPOINT) {
       throw new Error(
         "PASSWORD_RESET_HANDLE_ENDPOINT environment variable is not defined"
       );
     }
-
-    requestId = this.resolveRequestId(requestId);
+    let inputRequestId = request_id || "{stored_request_id}";
+    let requestId = resolveRequestId(this, inputRequestId);
     const endpoint = buildEndpoint(process.env.PASSWORD_RESET_HANDLE_ENDPOINT, {
       request_id: requestId,
     });
@@ -195,8 +143,8 @@ Given(
   }
 );
 Given(
-  /^as a Teacher or Admin, I reject password reset request "([^"]*)":$/,
-  async function (requestId, table) {
+  /^as (a|an) (teacher|admin), I reject password reset request(?: for the user "([^"]*)")?(?: with request_id "([^"]*)")?:$/,
+  async function (article, user_type, username, request_id, table) {
     const baseKey = "password-reset-status";
 
     if (!process.env.PASSWORD_RESET_HANDLE_ENDPOINT) {
@@ -204,8 +152,9 @@ Given(
         "PASSWORD_RESET_HANDLE_ENDPOINT environment variable is not defined"
       );
     }
+    let inputRequestId = request_id || "{stored_request_id}";
+    let requestId = resolveRequestId(this, inputRequestId);
 
-    requestId = this.resolveRequestId(requestId);
     const endpoint = buildEndpoint(process.env.PASSWORD_RESET_HANDLE_ENDPOINT, {
       request_id: requestId,
     });
@@ -215,8 +164,10 @@ Given(
   }
 );
 
-Given(/^as a user, I reset password for "([^"]*)"$/, async function (username) {
-  const baseKey = "resetPasswordWithUserId";
+Given(
+  /^as (a|an) (user|teacher|admin), I reset password for "([^"]*)"$/,
+  async function (article, user_type, username) {
+    const baseKey = "resetPasswordWithUserId";
 
   if (!process.env.USER_PASSWORD_RESET_ENDPOINT) {
     throw new Error(
@@ -254,26 +205,40 @@ Given(/^as a user, I reset password for "([^"]*)"$/, async function (username) {
     includeSymbols: true,
   });
 
-  console.log(
-    `${yellow} Generated password for ${username}: ${requestBody.new_password}`
-  );
 
-  this.sentData = { ...requestBody, username };
+    if (user_type === "admin" || user_type === "teacher") {
+      console.log(`${yellow} Adding additional properties for ${user_type}`);
 
-  await makeTimedRequest(this, "patch", endpoint, requestBody);
-});
+      requestBody.new_password_type = "Text";
+      requestBody.request_id = String(
+        resolveRequestId(this, "{stored_request_id}")
+      );
+
+      console.log(`${green} Enhanced request body for ${user_type}:`, {
+        user_id: requestBody.user_id,
+        new_password_type: requestBody.new_password_type,
+        request_id: requestBody.request_id,
+        new_password: "***hidden***",
+      });
+    }
+
+    this.sentData = { ...requestBody, username };
+    // Initialize user passwords storage if not exists
+    if (!global.testData["user_passwords"]) {
+      global.testData["user_passwords"] = {};
+    }
+
+    // Store the new password for this specific user
+    global.testData["user_passwords"][username] = requestBody.new_password;
+    await makeTimedRequest(this, "patch", endpoint, requestBody);
+  }
+);
 
 // Separate step for overrides
 Given(
-  /^as a user, I reset password for "([^"]*)" with overrides:$/,
-  async function (username, table) {
+  /^as a (user|teacher|admin), I reset password for "([^"]*)":$/,
+  async function (user_type, username, table) {
     const baseKey = "resetPasswordWithUserId";
-
-    if (!process.env.USER_PASSWORD_RESET_ENDPOINT) {
-      throw new Error(
-        "USER_PASSWORD_RESET_ENDPOINT environment variable is not defined"
-      );
-    }
 
     const endpoint = buildEndpoint(process.env.USER_PASSWORD_RESET_ENDPOINT, {
       username,
@@ -305,18 +270,21 @@ Given(
       includeSymbols: true,
     });
 
-    console.log(
-      `${yellow} Generated password for ${username}: ${requestBody.new_password}`
-    );
-
     this.sentData = { ...requestBody, username };
+    // Initialize user passwords storage if not exists
+    if (!global.testData["user_passwords"]) {
+      global.testData["user_passwords"] = {};
+    }
 
+    // Store the new password for this specific user
+    global.testData["user_passwords"][username] = requestBody.new_password;
+    console.log(global.testData["user_passwords"][username]);
     await makeTimedRequest(this, "patch", endpoint, requestBody);
   }
 );
 
 Then(
-  /^verify that there exists a password reset request record with pending status in DB for user "([^"]*)"$/,
+  /^a pending password reset request should exist for user "([^"]*)" in DB$/,
   async function (username) {
     const usersService = serviceFactory.getUsersService("iamdb");
     const user = await usersService.getUserByUsername(username);
@@ -361,3 +329,63 @@ async function verifyPasswordResetRequestCreated(testContext, userId) {
     );
   }
 }
+
+Given(/^i verify user "([^"]*)"$/, async function (username) {
+  const endpoint = buildEndpoint(process.env.USER_VERIFICATION_ENDPOINT, {
+    username,
+  });
+  await makeTimedRequest(this, "get", endpoint);
+  // Store the requested username for later use
+  this.requestedUsername = username.toLowerCase();
+});
+
+Then(/^validate response data against database$/, async function () {
+  if (this.response?.status !== 200 || !this.requestedUsername) return;
+
+  const validation = serviceFactory.getUserValidationService();
+  await validation.validateUserResponse(
+    this.requestedUsername,
+    this.response.data
+  );
+});
+
+Given(
+  /^i login as a (teacher|student|admin) using user "([^"]*)"$/,
+  async function (user_type, usernameOrPlaceholder) {
+    let actualUsername, password;
+    if (
+      usernameOrPlaceholder.startsWith("{") &&
+      usernameOrPlaceholder.endsWith("}")
+    ) {
+      const placeholder = usernameOrPlaceholder.slice(1, -1);
+      const index =
+        parseInt(placeholder.replace("mapped_student_", "")) - 1 || 0;
+      actualUsername = this.mappedStudentUsernames[index];
+    } else {
+      actualUsername = usernameOrPlaceholder;
+    }
+    if (
+      global.testData["user_passwords"] &&
+      global.testData["user_passwords"][actualUsername]
+    ) {
+      password = global.testData["user_passwords"][actualUsername];
+    } else {
+      password = global.testData["admin_password"]; // Default password
+    }
+
+    await authenticateUser(this, actualUsername, password);
+  }
+);
+
+Given(
+  /^i login as a (teacher|student|admin) using user:$/,
+  async function (user_type, table) {
+    const params = Object.fromEntries(table.raw().map(([k, v]) => [k, v]));
+    await authenticateUser(
+      this,
+      params.username,
+      params.password,
+      params.device_id
+    );
+  }
+);

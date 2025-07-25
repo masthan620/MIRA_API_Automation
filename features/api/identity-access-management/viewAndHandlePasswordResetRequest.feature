@@ -11,7 +11,7 @@ Feature: Password Reset flow for students from Admin and Teacher side
     @MIRA-5008
     Scenario: MIRA-5008 Verify API Response with Valid Parameters
       Then as a student, I send a Reset Password request for user "manish.modi"
-      And verify that there exists a password reset request record with pending status in DB for user "manish.modi"
+      And a pending password reset request should exist for user "manish.modi" in DB
       And as an admin, get all password reset requests for school "8435958" and store user_id and request_id for the user "manish.modi" with status "pending"
       Then the response status code should be 200
       And the response time should be less than 5000 milliseconds
@@ -65,7 +65,7 @@ Feature: Password Reset flow for students from Admin and Teacher side
       Then the response status code should be 200
       Then response should have fields "data"
 
-  Rule: Handle Password Reset Request as a Teacher or Admin
+  Rule: Handle Password Reset Request as a teacher
     As an admin
     I want to approve or reject password reset requests
     So that I can manage user password reset workflows
@@ -76,9 +76,9 @@ Feature: Password Reset flow for students from Admin and Teacher side
     @MIRA-4961
     Scenario: MIRA-4961 Successfully update status to "rejected"
       Given as a student, I send a Reset Password request for user "gaurav.iyer"
-      And verify that there exists a password reset request record with pending status in DB for user "gaurav.iyer"
+      And a pending password reset request should exist for user "gaurav.iyer" in DB
       Then as an admin, get all password reset requests for school "8435958" and store user_id and request_id for the user "gaurav.iyer" with status "pending"
-      And as a Teacher or Admin, I reject password reset request "{stored_request_id}":
+      And as a teacher, I reject password reset request for the user "gaurav.iyer":
         | status | rejected |
       Then the response status code should be 200
       Then response should have the following properties:
@@ -88,18 +88,18 @@ Feature: Password Reset flow for students from Admin and Teacher side
     @MIRA-4962
     Scenario: MIRA-4962 Verify response time is within acceptable range
       Given as a student, I send a Reset Password request for user "manish.modi"
-      And verify that there exists a password reset request record with pending status in DB for user "manish.modi"
+      And a pending password reset request should exist for user "manish.modi" in DB
       Then as an admin, get all password reset requests for school "8435958" and store user_id and request_id for the user "manish.modi" with status "pending"
-      And as a Teacher or Admin, I approve password reset request "{stored_request_id}"
+      And as a teacher, I approve password reset request for the user "manish.modi"
       Then the response status code should be 200
       And the response time should be less than 5000 milliseconds
 
     @MIRA-4969
     Scenario: MIRA-4969 End-to-end password reset approval flow
       Given as a student, I send a Reset Password request for user "ishita.thakur"
-      And verify that there exists a password reset request record with pending status in DB for user "ishita.thakur"
+      And a pending password reset request should exist for user "ishita.thakur" in DB
       Then as an admin, get all password reset requests for school "8435958" and store user_id and request_id for the user "ishita.thakur" with status "pending"
-      And as a Teacher or Admin, I approve password reset request "{stored_request_id}"
+      And as a teacher, I approve password reset request for the user "ishita.thakur"
       Then the response status code should be 200
       Then response should have the following properties:
         | success | success_flag                        |
@@ -109,9 +109,9 @@ Feature: Password Reset flow for students from Admin and Teacher side
     @MIRA-4970
     Scenario: MIRA-4970 End-to-end password reset rejection flow
       Given as a student, I send a Reset Password request for user "gayatri.jain"
-      And verify that there exists a password reset request record with pending status in DB for user "gayatri.jain"
+      And a pending password reset request should exist for user "gayatri.jain" in DB
       Then as an admin, get all password reset requests for school "8435958" and store user_id and request_id for the user "gayatri.jain" with status "pending"
-      And as a Teacher or Admin, I reject password reset request "{stored_request_id}":
+      And as a teacher, I reject password reset request for the user "gayatri.jain":
         | status | rejected |
       Then the response status code should be 200
       Then response should have the following properties:
@@ -122,13 +122,13 @@ Feature: Password Reset flow for students from Admin and Teacher side
     @MIRA-4963
     Scenario: MIRA-4963 Missing Authorization header should return 401 Unauthorized
       Given i do not have authentication token
-      When as a Teacher or Admin, I approve password reset request "static_request_id"
+      When as a teacher, I approve password reset request for the user "akshay.basu" with request_id "123"
       Then the response status code should be 401
       Then response should have fields "message"
 
     @MIRA-4965
     Scenario: MIRA-4965 Non-existent request_id should return 404 Not Found
-      Given as a Teacher or Admin, I approve password reset request "90341234"
+      Given as a teacher, I approve password reset request for the user "akshay.basu" with request_id "90341234"
       Then the response status code should be 503
       And response should have the following properties:
         | status  | failure_flag               |
@@ -136,7 +136,7 @@ Feature: Password Reset flow for students from Admin and Teacher side
 
     @MIRA-4966
     Scenario Outline: MIRA-4966 Invalid request_id should return 400 Bad Request
-      Given as a Teacher or Admin, I approve password reset request "<invalid_id>"
+      Given as a teacher, I approve password reset request with request_id "<invalid_id>"
       Then the response status code should be 503
       And response should contain request data as specified:
         | message | Failed to update password reset request: invalid input syntax for type integer: \\"<invalid_id>\\" |
@@ -148,7 +148,7 @@ Feature: Password Reset flow for students from Admin and Teacher side
 
     @MIRA-4967
     Scenario: MIRA-4967 Missing status in request body should return 400 Bad Request
-      Given as a Teacher or Admin, I reject password reset request "123":
+      Given as a teacher, I reject password reset request with request_id "123":
         | status | __REMOVE__ |
       Then the response status code should be 400
       Then response should have the following properties:
@@ -156,7 +156,7 @@ Feature: Password Reset flow for students from Admin and Teacher side
 
     @MIRA-4968
     Scenario: MIRA-4968 Invalid status value should return 400 Bad Request
-      Given as a Teacher or Admin, I reject password reset request "123":
+      Given as a teacher, I reject password reset request with request_id "123":
         | status | approve |
       Then the response status code should be 400
       Then response should have the following properties:
@@ -165,9 +165,9 @@ Feature: Password Reset flow for students from Admin and Teacher side
     @MIRA-4960
     Scenario: MIRA-4960 Successfully update status to "approved"
       Given as a student, I send a Reset Password request for user "akshay.basu"
-      And verify that there exists a password reset request record with pending status in DB for user "akshay.basu"
+      And a pending password reset request should exist for user "akshay.basu" in DB
       Then as an admin, get all password reset requests for school "8435958" and store user_id and request_id for the user "akshay.basu" with status "pending"
-      And as a Teacher or Admin, I approve password reset request "{stored_request_id}"
+      And as a teacher, I approve password reset request for the user "akshay.basu"
       Then the response status code should be 200
       Then response should have the following properties:
         | success | success_flag                        |

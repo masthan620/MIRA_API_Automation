@@ -197,7 +197,7 @@ Given(/^i have valid authentication token$/, async function () {
 });
 
 Given(/^i have invalid authentication token$/, function () {
-  this.authToken = "invalid_token_12345";
+  this.authToken = global.testData[invalid_auth_token];
 });
 
 Given(/^i do not have authentication token$/, function () {

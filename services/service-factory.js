@@ -96,6 +96,99 @@ class ServiceFactory {
 
     return baseService;
   }
+  getDeviceUserMappingService(dbName = "devicemanagement") {
+    const baseService = this.getDbService(dbName, "device_user_mapping");
+
+    // Extend with device mapping specific methods
+    baseService.getDeviceByUserId = async function (userId) {
+      return this.query()
+        .where("user_id", userId)
+        .where("active", true)
+        .orderBy("id", "asc")
+        .first();
+    };
+
+    baseService.getAllDevicesByUserId = async function (userId) {
+      return this.query()
+        .where("user_id", userId)
+        .where("active", true)
+        .orderBy("id", "asc");
+    };
+
+    baseService.getUserByDeviceId = async function (deviceId) {
+      return this.query()
+        .where("device_id", deviceId)
+        .where("active", true)
+        .first();
+    };
+
+    return baseService;
+  }
+  /**
+   * Get user validation service for cross-database validation
+   */
+  getUserValidationService(
+    iamDbName = "iamdb",
+    profileDbName = "usermanagement"
+  ) {
+    const self = this;
+
+    return {
+      validateUserResponse: async function (username, apiData) {
+        const usersService = self.getUsersService(iamDbName);
+        const dbUser = await usersService.getUserByUsername(username);
+
+        if (!dbUser) {
+          throw new Error(`User ${username} not found in ${iamDbName}`);
+        }
+
+        const profileService = self.getDbService(profileDbName, "user_profile");
+        const dbProfile = await profileService
+          .query()
+          .where("user_id", dbUser.user_id)
+          .first();
+
+        // Validate core fields
+        if (
+          apiData.username?.toLowerCase() !== dbUser.username?.toLowerCase()
+        ) {
+          throw new Error(
+            `Username mismatch: API="${apiData.username}" vs DB="${dbUser.username}"`
+          );
+        }
+
+        if (apiData.password_type !== dbUser.password_type) {
+          throw new Error(
+            `Password type mismatch: API="${apiData.password_type}" vs DB="${dbUser.password_type}"`
+          );
+        }
+
+        if (dbProfile) {
+          if (
+            apiData.user_type &&
+            apiData.user_type.toLowerCase() !==
+              dbProfile.user_type?.toLowerCase()
+          ) {
+            throw new Error(
+              `User type mismatch: API="${apiData.user_type}" vs DB="${dbProfile.user_type}"`
+            );
+          }
+
+          if (
+            apiData.school_code &&
+            apiData.school_code !== Number(dbProfile.school_code)
+          ) {
+            throw new Error(
+              `School code mismatch: API="${apiData.school_code}" vs DB="${dbProfile.school_code}"`
+            );
+          }
+        }
+
+        console.log("✅ Database validation passed");
+        return { dbUser, dbProfile };
+      },
+    };
+  }
 }
 
 const serviceFactory = new ServiceFactory();

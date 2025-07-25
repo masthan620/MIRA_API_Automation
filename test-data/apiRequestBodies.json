@@ -1,17 +1,16 @@
 {
   "saveDevice": {
-    "unique_device_id": "df43@#$dfd",
+    "unique_device_id": "abcdef3123456",
     "mobile_number": "9876543210",
     "country_code": "+91",
-    "email": "demo@gmsil.com",
     "otp_verified": true,
     "device_configuration": {
-      "model": "Pixel 5",
-      "os_version": "Android 12",
-      "battery": "80"
+        "model": "Pixel 5",
+        "os_version": "Android 12",
+        "battery": "80"
     },
     "app_version": "1.2.3"
-  },
+},
 
   "sendOTPValidMobile": {
     "mobile_number": "9876543210",
@@ -33,12 +32,6 @@
     "mobile_number": "123",
     "country_code": "+91"
   },
-  "mapDevice": {
-    "subscription_key": "abc123"
-  },
-  "mapDeviceEmptyKey": {
-    "subscription_key": ""
-  },
   "passwordResetToAdmin/Teacher": {
     "request_to": "admin"
   },
@@ -47,6 +40,13 @@
   },
   "resetPasswordWithUserId": {
     "new_password": "GENERATE_SIMPLE",
-    "user_id": "9000000120"
+    "user_id": "9000000120",
+    "new_password_type": "Text",
+    "request_id": "123"
+  },
+  "loginEmptyBody": {},
+  
+  "mapStudentsToDevice": {
+    "user_ids": []
   }
 }

@@ -171,31 +171,3 @@ When('I delete test devices with mobile number {string}', async function (mobile
         throw error;
     }
 });
-
-Then(/^verify mapped students are present in DB$/, async function () {
-    const deviceId = this.regResponse?.body?.device_id 
-                  || this.regResponse?.data?.data?.device_id 
-                  || this.device_id;
-
-    const mappedUsers = this.mappedUserIds;
-
-    if (!deviceId || !mappedUsers || mappedUsers.length === 0) {
-        throw new Error("Missing deviceId or mappedUserIds for DB validation.");
-    }
-
-    const deviceService = serviceFactory.getDbService('devicemanagement', 'public.device_user_mapping');
-
-    for (const userId of mappedUsers) {
-        const query = `
-            SELECT * FROM public.device_user_mapping
-            WHERE device_id = ? AND user_id = ? AND active = true
-        `;
-        const result = await deviceService.rawQuery(query, [deviceId, userId]);
-
-        if (!result.rows || result.rows.length === 0) {
-            throw new Error(`❌ User ${userId} is NOT mapped to device ${deviceId} in DB.`);
-        }
-
-        console.log(`✅ DB Check: User ${userId} is correctly mapped to device ${deviceId}`);
-    }
-});
