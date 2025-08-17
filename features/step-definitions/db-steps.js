@@ -2,7 +2,8 @@
 import { Then, When } from '@wdio/cucumber-framework';
 import { expect } from 'chai';
 import serviceFactory from '../../services/service-factory.js';
-
+import testData from '../../test-data/testData.json';
+import { red, green, yellow } from '../../utils/apiClient.js';
 
 
 /**
@@ -124,41 +125,50 @@ Then('verify that all device input values are correctly stored in the database',
     }
 });
 
+
+
+// Replace your database validation step with this corrected version
+
+// Replace your database validation step with this corrected version
+
 Then(/^verify the device is mapped to the school in the database(?: "([^"]+)")?$/, async function (presence) {
-    const expectedPresence = presence || "true"; // fallback to true
-
-    const responseData = this.regResponse?.body || this.regResponse?.data?.data || this.response?.data || this.response;
-    const deviceId = responseData.device_id || this.deviceId;
-    const schoolCode = testData["school_code"];
-
-    expect(deviceId, 'No device_id found in world').to.exist;
-
-    const deviceService = serviceFactory.getDbService('devicemanagement', 'public.device_school_mapping');
-    const query = 'SELECT * FROM public.device_school_mapping WHERE device_id = ? AND school_code = ?';
-    const params = [deviceId, schoolCode];
+    const expectedPresence = presence || "true";
     const shouldExist = expectedPresence.toLowerCase() === "true";
-
-    const result = await deviceService.rawQuery(query, params);
+    
+    const deviceId = this.deviceId || this.regResponse?.data?.device_id;
+    const organisationCode = testData["organisation_code"];
+    
+    if (!deviceId) {
+        throw new Error("deviceId not found from previous steps");
+    }
+    
+    console.log(`${yellow}🔍 Verifying device mapping in database`);
+    console.log(`${yellow}📊 Device ID: ${deviceId}`);
+    console.log(`${yellow}🏢 Organization Code: ${organisationCode}`);
+    
+    const deviceService = serviceFactory.getDbService('devicemanagement', 'public.device_organisation_mapping');
+    
+    // Use the exact query from your original spec
+    const query = `SELECT * FROM public.device_organisation_mapping 
+                   WHERE device_id = ? AND organisation_code = ? AND active = 'true' 
+                   ORDER BY id ASC`;
+    
+    const result = await deviceService.rawQuery(query, [deviceId, organisationCode]);
     const mappingExists = result.rows && result.rows.length > 0;
-
+    
+    console.log(`${yellow}📋 Query result: ${result.rows?.length || 0} rows found`);
+    
     if (shouldExist) {
-        expect(mappingExists, `Device ${deviceId} not mapped to school ${schoolCode}`).to.be.true;
+        expect(mappingExists, `Device ${deviceId} not mapped to organization ${organisationCode} in database`).to.be.true;
+        console.log(`${green}✅ Device mapping verified in database`);
+        if (result.rows.length > 0) {
+            console.log(`${green}📄 Mapping data:`, JSON.stringify(result.rows[0]));
+        }
     } else {
-        expect(mappingExists, `Device ${deviceId} should NOT be mapped to school ${schoolCode}`).to.be.false;
+        expect(mappingExists, `Device ${deviceId} should NOT be mapped to organization ${organisationCode}`).to.be.false;
+        console.log(`${green}✅ Confirmed device is not mapped in database`);
     }
 });
-
-Then('verify the device is unmapped from the school in the database', async function () {
-    const schoolCode = testData["school_code"];
-    const deviceId = this.regResponse?.body?.device_id ?? this.regResponse?.data?.data?.device_id ?? this.regResponse?.device_id;
-    const query = `SELECT * FROM device_school_mapping WHERE device_id = ? AND school_code = ? ORDER BY updated_at DESC LIMIT 1`;;
-    const dbRecord = await serviceFactory.getDbService('devicemanagement', 'public.device_school_mapping').rawQuery(query, [deviceId, schoolCode]);
-    const activeField = dbRecord.fields.find(f => f.name === 'active');
-    expect(activeField, 'Active field not found in result.fields').to.not.be.undefined;
-    expect(activeField.dataTypeModifier, 'Expected dataTypeModifier to be -1 for "active" column').to.equal(-1);
-});
-
-
 // ✅ Delete test devices by mobile number
 When('I delete test devices with mobile number {string}', async function (mobileNumber) {
     const deviceService = serviceFactory.getDbService('devicemanagement', 'public.device_registration');

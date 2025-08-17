@@ -197,9 +197,19 @@ Given(/^i have valid authentication token$/, async function () {
 });
 
 Given(/^i have invalid authentication token$/, function () {
-  this.authToken = global.testData[invalid_auth_token];
+  this.authToken = global.testData[invalid_auth_token] || testData["invalid_auth_token"];
+  console.log(`${yellow}Using invalid auth token: ${this.authToken}`);
 });
 
 Given(/^i do not have authentication token$/, function () {
   this.authToken = null;
+});
+
+
+Then(/^response should be an array with device mappings$/, function () {
+    const responseData = this.response.body || this.response.data || this.response;
+    
+    expect(Array.isArray(responseData)).toBe(true);
+    expect(responseData.length).toBeGreaterThan(0);
+    console.log(`${green}✅ Response is array with ${responseData.length} device mappings`);
 });

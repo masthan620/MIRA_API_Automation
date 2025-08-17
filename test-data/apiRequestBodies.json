@@ -7,7 +7,8 @@
     "device_configuration": {
         "model": "Pixel 5",
         "os_version": "Android 12",
-        "battery": "80"
+        "battery": "5000mah",
+        "name":"Automation device"
     },
     "app_version": "1.2.3"
 },

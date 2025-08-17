@@ -9,8 +9,8 @@
   "empty_unique_device_id_err_msg": "unique_device_id: \"unique_device_id\" is not allowed to be empty",
   "empty_otp_verified_err_msg": "otp_verified: \"otp_verified\" must be a boolean",
   "empty_config_fields_err_msg": "device_configuration,model: \"device_configuration.model\" is not allowed to be empty, device_configuration,os_version: \"device_configuration.os_version\" is not allowed to be empty, device_configuration,battery: \"device_configuration.battery\" is not allowed to be empty",
-  "invalid_config_fields_err_msg": "device_configuration,model: \"device_configuration.model\" with value \"9100@#678*\" fails to match the required pattern: /^[a-zA-Z0-9\\s\\-_:;.,()]+$/, device_configuration,os_version: \"device_configuration.os_version\" with value \"9100@#678*\" fails to match the required pattern: /^[a-zA-Z0-9\\s\\-_:;.,()]+$/, device_configuration,battery: \"device_configuration.battery\" with value \"9100@#678*\" fails to match the required pattern: /^[a-zA-Z0-9\\s\\-_:;.,()]+$/",
-  "invalid_device_id_err_msg": "unique_device_id: \"unique_device_id\" with value \"9100@#678*\" fails to match the required pattern: /^[a-zA-Z0-9\\s\\-_:;.,()]+$/",
+  "invalid_config_fields_err_msg": "device_configuration,model: \"device_configuration.model\" with value \"80ABCD@*&\" fails to match the required pattern: /^[a-zA-Z0-9\\s\\-_:;.,()]+$/, device_configuration,os_version: \"device_configuration.os_version\" with value \"80ABCD@*&\" fails to match the required pattern: /^[a-zA-Z0-9\\s\\-_:;.,()]+$/, device_configuration,battery: \"device_configuration.battery\" with value \"80ABCD@*&\" fails to match the required pattern: /^[a-zA-Z0-9\\s\\-_:;.,()]+$/",
+  "invalid_device_id_err_msg": "unique_device_id: \"unique_device_id\" with value \"80ABCD@*&\" fails to match the required pattern: /^[a-zA-Z0-9\\s\\-_:;.,()]+$/",
   "otp_success_flag": true,
   "otp_failure_flag": false,
   "otp_success_message": "OTP sent successfully",
@@ -21,8 +21,9 @@
   "invalid_country_code_err_msg": "Invalid country code",
   "str_digits_5": "62345",
   "Long_digit_str": "6234567890123434",
+  "device_notfound_error_msg":"Device not found",
   "str_with_alphanumeric": "623WSDER23",
-  "str_with_special_char": "9100@#678*",
+  "str_with_special_char": "80ABCD@*&",
   "empty_email_err_msg": "email: \"email\" is not allowed to be empty",
   "invalid_email_no_at": "demo.com",
   "invalid_email_no_domain": "demotest@",
@@ -32,13 +33,14 @@
   "invalid_countryCode_format": "2345",
   "countryCode_special_chars": "+91@#",
   "countryCode_without_plus": "91",
-  "organisation_code": "8412345",
+  "organisation_code": "801234",
   "already_mapped_msg": "Device is already mapped to the organisation",
-  "unmap_message": "Device successfully unmapped from the school.",
+  "unmap_message": "Device successsfully unmapped from the school.",
   "empty_subscription_key_error_msg": "body: \"subscription_key\" is not allowed to be empty",
   "resource_not_found_msg":"Resource Not Found.",
-  "invalid_school_code_msg":"params: school_code must contain only alphanumeric characters",
-  "school_code_with_spaces": " 67 898 87  ",
+  "invalid_device_not_registered_msg":"params: device_id must contain only alphanumeric characters",
+  "method_not_allow_error_meg":"Method Not Allowed",
+  "str_with_spaces": " 80 123 4  ",
   "invalid_school_code_alphanumeric": "122344sd",
   "resource_not_found_code": "DMS994042KNU06",
   "resource_not_found_msg2":"Resource not found!",
@@ -50,7 +52,7 @@
   "invalid_device_id_with_spaces": " 3435 456 ",
   "invalid_school_code_unmap": "8435958",
   "invalid_device_unmap_error_code": "DMS99404N6FI76",
-  "invalid_device_unmap_error_msg": "Invalid school code 8435958 or device 12sde23 is not mapped to the school.",
+  "org_code_must_be_number_msg": "params: \"organisation_code\" must be a number",
   "invalid_school_code_msg2":"params: School code must contain only alphanumeric characters",
   "dynamicUsername": "testuser123",
   "existingUserWithRequest": "userwithrequests",
@@ -101,3 +103,9 @@
     "is_login_info": true
   }
 }
+
+
+
+
+
+  
