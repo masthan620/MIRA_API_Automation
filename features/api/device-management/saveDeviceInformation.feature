@@ -1,6 +1,6 @@
 @reg_device
 Feature: Save Device Information
-
+  @MIRA-1657
   Scenario: MIRA-1657 - Verify Successful Registration of a Device with Valid Input Data
     Given register device
     Then the response status code should be 200
@@ -33,8 +33,7 @@ Feature: Save Device Information
     And response should have the following properties:
       | status  | status_false                   |
       | code    | error_code                     |
-      | message | empty_unique_device_id_err_msg |
-  @demorun    
+      | message | empty_unique_device_id_err_msg |   
   Scenario Outline: MIRA-1660 - Verify Device Registration API Fails with Empty or Invalid Mobile Number <test_case_id>
     Given register device:
       | mobile_number | <mobile_number> |
@@ -50,7 +49,7 @@ Feature: Save Device Information
       | Invalid Mobile Number Format (< 10 digits) | 5_digits_str              | invalid_mobile_number_errormesg |
       | Too Long Mobile Number (> 13 digits)       | Long_digit_str            | invalid_mobile_number_errormesg |
       | Alphanumeric MobileNumber                  | str_with_alphanumeric     | invalid_mobile_number_errormesg |
-      | Special Characters Mobile Number           | str_with_special_char     | invalid_mobile_number_errormesg |
+      | Special Characters Mobile Number           | str_with_special_char     |  invalid_mobile_number_errormesg|
 
   Scenario: MIRA-1661 - Save Device Information - Verify the API for Empty OTP Verified Field
     Given register device:

@@ -12,9 +12,7 @@ yellow,
 reset,
   makeTimedRequest,
 } from "../../utils/apiClient.js";
-
 import { generateUniqueId1 } from "../../utils/generateRandomData.js";
-
 // Function to load request body from JSON (keep only one declaration)
 const loadRequestBody = (key) => {
     const dataPath = path.resolve('./test-data/apiRequestBodies.json');
@@ -22,7 +20,6 @@ const loadRequestBody = (key) => {
     const requestBodies = JSON.parse(raw);
     return requestBodies[key];
 };
-
 // Utility function for applying overrides (keep only one declaration)
 function applyOverrides(originalBody, overrides) {
   const resolvedOverrides = { ...originalBody };
@@ -49,21 +46,33 @@ function applyOverrides(originalBody, overrides) {
 
   return resolvedOverrides;
 }
-
-// DEVICE REGISTRATION STEPS (existing - keep as is)
+// Helper function to build headers with authentication
+const buildAuthHeaders = (authToken) => {
+    const headers = { 'Content-Type': 'application/json' };
+    
+    if (authToken !== null) {
+        headers['Authorization'] = authToken;
+    }
+    
+    return headers;
+};
+// DEVICE REGISTRATION STEPS - UPDATED
 Given(/^register device$/, async function () {
     const endpoint = process.env.DEVICE_REGISTER_ENDPOINT;
     this.requestBody = loadRequestBody("saveDevice");
     this.requestBody.unique_device_id = generateUniqueId1();
     console.log("Final Request Body →", JSON.stringify(this.requestBody, null, 2));
-    const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': process.env.ACCESS_TOKEN
-    };
+    
+    // UPDATED: Use this.authToken if set, otherwise use default token
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`${yellow}🔑 Registration using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = buildAuthHeaders(authToken);
+    console.log("Request Headers →", JSON.stringify(headers, null, 2));
+    
     this.response = await apiClient.post(endpoint, this.requestBody, headers);
     this.regResponse = this.response;
 });
-
 Given(/^register device:$/, async function (table) {
     const endpoint = process.env.DEVICE_REGISTER_ENDPOINT;
     this.requestBody = loadRequestBody("saveDevice");
@@ -74,18 +83,18 @@ Given(/^register device:$/, async function (table) {
     // Apply overrides from testData if key matches
     this.requestBody = applyOverrides(this.requestBody, overrides);
     console.log("Final Request Body →", JSON.stringify(this.requestBody, null, 2));
-    //Updated: Add Authorization header for device registration
-    const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': process.env.ACCESS_TOKEN
-    };
+    
+    // UPDATED: Use this.authToken if set, otherwise use default token
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`${yellow}🔑 Registration using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = buildAuthHeaders(authToken);
+    console.log("Request Headers →", JSON.stringify(headers, null, 2));
+    
     this.response = await apiClient.post(endpoint, this.requestBody, headers);
     this.regResponse = this.response;
 });
-
-// Replace your device mapping steps with these simple ones
-
-// Map device to school WITHOUT overrides (NO table)
+// Map device to school WITHOUT overrides (NO table) - UPDATED
 Given(/^map the device to school$/, async function () {
     const deviceId = this.regResponse?.data?.device_id || 
                      this.regResponse?.body?.data?.device_id || 
@@ -106,14 +115,15 @@ Given(/^map the device to school$/, async function () {
     console.log(`${yellow}🔗 Mapping device ${deviceId} to organization ${organisationCode}`);
     console.log(`${yellow}📍 Endpoint: ${endpoint}`);
     
-    // Empty request body (no subscription_key needed)
     const requestBody = {};
     console.log("Request Body →", JSON.stringify(requestBody, null, 2));
     
-    const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': process.env.ACCESS_TOKEN
-    };
+    // UPDATED: Use this.authToken if set, otherwise use default token
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`${yellow}🔑 Using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = buildAuthHeaders(authToken);
+    console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
     try {
         this.response = await apiClient.post(endpoint, requestBody, headers);
@@ -123,8 +133,7 @@ Given(/^map the device to school$/, async function () {
     
     this.deviceId = deviceId;
 });
-
-// Map device to school WITH overrides (WITH table)
+// Map device to school WITH overrides (WITH table) - UPDATED
 Given(/^map the device to school:$/, async function (table) {
     let deviceId = this.regResponse?.data?.device_id || 
                    this.regResponse?.body?.data?.device_id || 
@@ -152,14 +161,15 @@ Given(/^map the device to school:$/, async function (table) {
     console.log(`${yellow}🔗 Mapping device ${deviceId} to organization ${organisationCode}`);
     console.log(`${yellow}📍 Final Endpoint: ${endpoint}`);
     
-    // Empty request body (no subscription_key needed)
     const requestBody = {};
     console.log("Request Body →", JSON.stringify(requestBody, null, 2));
     
-    const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': process.env.ACCESS_TOKEN
-    };
+    // UPDATED: Use this.authToken if set, otherwise use default token
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`${yellow}🔑 Using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = buildAuthHeaders(authToken);
+    console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
     try {
         this.response = await apiClient.post(endpoint, requestBody, headers);
@@ -169,13 +179,7 @@ Given(/^map the device to school:$/, async function (table) {
     
     this.deviceId = deviceId;
 });
-
-// Add these step definitions to your device.management.steps.js file
-
-// Get device details WITHOUT overrides (NO table)
-// Add these step definitions to the END of your features/step-definitions/device.management.steps.js file
-
-// Get device details WITHOUT overrides (NO table)
+// Get device details WITHOUT overrides (NO table) - UPDATED
 Given(/^get device details$/, async function () {
     // Try multiple paths to find device_id from registration response
     const deviceId = this.regResponse?.data?.device_id || 
@@ -197,10 +201,12 @@ Given(/^get device details$/, async function () {
     console.log(`${yellow}🔍 Getting device details for device: ${deviceId}`);
     console.log(`${yellow}📍 Endpoint: ${endpoint}`);
     
-    const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': process.env.ACCESS_TOKEN
-    };
+    // UPDATED: Use this.authToken if set, otherwise use default token
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`${yellow}🔑 Using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = buildAuthHeaders(authToken);
+    console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
     try {
         this.response = await apiClient.get(endpoint, headers);
@@ -210,8 +216,7 @@ Given(/^get device details$/, async function () {
     
     this.deviceId = deviceId; // Store for later use
 });
-
-// Get device details WITH overrides (WITH table)
+// Get device details WITH overrides (WITH table) - UPDATED
 Given(/^get device details:$/, async function (table) {
     // Try multiple paths to find device_id from registration response
     let deviceId = this.regResponse?.data?.device_id || 
@@ -221,7 +226,6 @@ Given(/^get device details:$/, async function (table) {
                    this.response?.body?.data?.device_id ||
                    this.deviceId;
     
-    // Process table overrides
     const overrides = Object.fromEntries(table.raw().map(([k, v]) => [k, v]));
     
     // Apply overrides from testData if key matches, otherwise use raw value
@@ -245,10 +249,12 @@ Given(/^get device details:$/, async function (table) {
     console.log(`${yellow}🔍 Getting device details for device: ${deviceId}`);
     console.log(`${yellow}📍 Endpoint: ${endpoint}`);
     
-    const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': process.env.ACCESS_TOKEN
-    };
+    // UPDATED: Use this.authToken if set, otherwise use default token
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`${yellow}🔑 Using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = buildAuthHeaders(authToken);
+    console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
     try {
         this.response = await apiClient.get(endpoint, headers);
@@ -258,4 +264,193 @@ Given(/^get device details:$/, async function (table) {
     
     this.sentData = { device_id: deviceId };
     this.deviceId = deviceId; // Store for later use
+});
+// Get organisation device details WITHOUT overrides (NO table) - UPDATED
+Given(/^get the organization details for device$/, async function () {
+    // Try multiple paths to find device_id from registration response
+    const deviceId = this.regResponse?.data?.device_id || 
+                     this.regResponse?.body?.data?.device_id || 
+                     this.regResponse?.data?.data?.device_id ||
+                     this.response?.data?.device_id ||
+                     this.response?.body?.data?.device_id ||
+                     this.deviceId;
+    
+    // Get organisation_code from test data
+    const organisationCode = testData["organisation_code"];
+    
+    if (!deviceId) {
+        console.error("Available regResponse:", JSON.stringify(this.regResponse, null, 2));
+        console.error("Available response:", JSON.stringify(this.response, null, 2));
+        throw new Error("deviceId not found from previous registration step.");
+    }
+    
+    if (!organisationCode) {
+        throw new Error("organisation_code not found in testData.json");
+    }
+    
+    let endpoint = process.env.GET_ORGANISATION_DEVICE_ENDPOINT;
+    endpoint = endpoint.replace('{organisation_code}', organisationCode);
+    endpoint = endpoint.replace('{device_id}', deviceId);
+    
+    console.log(`${yellow}🔍 Getting organisation device details for device: ${deviceId}`);
+    console.log(`${yellow}🏢 Organisation: ${organisationCode}`);
+    console.log(`${yellow}📍 Endpoint: ${endpoint}`);
+    
+    // UPDATED: Use this.authToken if set, otherwise use default token
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`${yellow}🔑 Using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = buildAuthHeaders(authToken);
+    console.log("Request Headers →", JSON.stringify(headers, null, 2));
+    
+    try {
+        this.response = await apiClient.get(endpoint, headers);
+    } catch (error) {
+        this.response = error.response;
+    }
+    
+    this.deviceId = deviceId; // Store for later use
+    this.organisationCode = organisationCode; // Store for later use
+});
+// Get organisation device details WITH overrides (WITH table) - UPDATED
+Given(/^get the organization details for device:$/, async function (table) {
+    // Try multiple paths to find device_id from registration response
+    let deviceId = this.regResponse?.data?.device_id || 
+                   this.regResponse?.body?.data?.device_id || 
+                   this.regResponse?.data?.data?.device_id ||
+                   this.response?.data?.device_id ||
+                   this.response?.body?.data?.device_id ||
+                   this.deviceId;
+    
+    // Get default organisation_code from test data
+    let organisationCode = testData["organisation_code"];
+    
+    const overrides = Object.fromEntries(table.raw().map(([k, v]) => [k, v]));
+    
+    // Apply overrides from testData if key matches, otherwise use raw value
+    for (const key in overrides) {
+        const value = testData[overrides[key]] !== undefined ? testData[overrides[key]] : overrides[key];
+        
+        if (key === 'device_id') {
+            deviceId = value;
+        } else if (key === 'organisation_code') {
+            organisationCode = value;
+        }
+    }
+    
+    if (!deviceId && !overrides.device_id) {
+        console.error("Available regResponse:", JSON.stringify(this.regResponse, null, 2));
+        console.error("Available response:", JSON.stringify(this.response, null, 2));
+        throw new Error("deviceId not found from previous registration step and not provided in overrides.");
+    }
+    
+    if (!organisationCode && !overrides.organisation_code) {
+        throw new Error("organisation_code not found in testData.json and not provided in overrides.");
+    }
+    
+    let endpoint = process.env.GET_ORGANISATION_DEVICE_ENDPOINT;
+    endpoint = endpoint.replace('{organisation_code}', organisationCode);
+    endpoint = endpoint.replace('{device_id}', deviceId);
+    
+    console.log(`${yellow}🔍 Getting organisation device details for device: ${deviceId}`);
+    console.log(`${yellow}🏢 Organisation: ${organisationCode}`);
+    console.log(`${yellow}📍 Endpoint: ${endpoint}`);
+    console.log(`${yellow}⚙️ Applied overrides:`, JSON.stringify(overrides, null, 2));
+    
+    // UPDATED: Use this.authToken if set, otherwise use default token
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`${yellow}🔑 Using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = buildAuthHeaders(authToken);
+    console.log("Request Headers →", JSON.stringify(headers, null, 2));
+    
+    try {
+        this.response = await apiClient.get(endpoint, headers);
+    } catch (error) {
+        this.response = error.response;
+    }
+    
+    this.sentData = { device_id: deviceId, organisation_code: organisationCode };
+    this.deviceId = deviceId; // Store for later use
+    this.organisationCode = organisationCode; // Store for later use
+});
+
+// Unmap device from school WITHOUT overrides (NO table)
+Given(/^unmap the device from school$/, async function () {
+    const deviceId = this.regResponse?.data?.device_id || 
+                     this.regResponse?.body?.data?.device_id || 
+                     this.regResponse?.data?.data?.device_id ||
+                     this.device_id;
+    
+    const organisationCode = testData["organisation_code"];
+    
+    if (!deviceId) {
+        console.error("Available response structure:", JSON.stringify(this.regResponse, null, 2));
+        throw new Error("deviceId not found from previous registration step.");
+    }
+    
+    let endpoint = process.env.UNMAP_DEVICE_ENDPOINT;
+    endpoint = endpoint.replace('{organisation_code}', organisationCode);
+    endpoint = endpoint.replace('{device_id}', deviceId);
+    
+    console.log(`${yellow}🔗 Unmapping device ${deviceId} from organization ${organisationCode}`);
+    console.log(`${yellow}📍 Endpoint: ${endpoint}`);
+    
+    // Use this.authToken if set, otherwise use default token
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`${yellow}🔑 Using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = buildAuthHeaders(authToken);
+    console.log("Request Headers →", JSON.stringify(headers, null, 2));
+    
+    try {
+        this.response = await apiClient.delete(endpoint, headers);
+    } catch (error) {
+        this.response = error.response;
+    }
+    
+    this.deviceId = deviceId;
+});
+// Unmap device from school WITH overrides (WITH table)
+Given(/^unmap the device from school:$/, async function (table) {
+    let deviceId = this.regResponse?.data?.device_id || 
+                   this.regResponse?.body?.data?.device_id || 
+                   this.regResponse?.data?.data?.device_id ||
+                   this.device_id;
+    
+    let organisationCode = testData["organisation_code"];
+    
+    const overrides = Object.fromEntries(table.raw().map(([k, v]) => [k, v]));
+    
+    for (const key in overrides) {
+        const value = testData[overrides[key]] !== undefined ? testData[overrides[key]] : overrides[key];
+        
+        if (key === 'device_id') {
+            deviceId = value;
+        } else if (key === 'organisation_code') {
+            organisationCode = value;
+        }
+    }
+    
+    let endpoint = process.env.UNMAP_DEVICE_ENDPOINT;
+    endpoint = endpoint.replace('{organisation_code}', organisationCode);
+    endpoint = endpoint.replace('{device_id}', deviceId);
+    
+    console.log(`${yellow}🔗 Unmapping device ${deviceId} from organization ${organisationCode}`);
+    console.log(`${yellow}📍 Final Endpoint: ${endpoint}`);
+    
+    // Use this.authToken if set, otherwise use default token
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`${yellow}🔑 Using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = buildAuthHeaders(authToken);
+    console.log("Request Headers →", JSON.stringify(headers, null, 2));
+    
+    try {
+        this.response = await apiClient.delete(endpoint, headers);
+    } catch (error) {
+        this.response = error.response;
+    }
+    
+    this.deviceId = deviceId;
 });

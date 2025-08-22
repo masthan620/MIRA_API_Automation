@@ -5,63 +5,93 @@ import dbFactory from './db-factory.js';
 const serviceCache = {};
 
 class ServiceFactory {
-    /**
-     * Get a general database service for any database and table
-     * @param {string} dbName - Database name
-     * @param {string} tableName - Table name
-     * @returns {BaseDbService} - Database service for the specified table
-     */
-    getDbService(dbName, tableName) {
-        const serviceKey = `${dbName}.${tableName}`;
-        
-        if (!serviceCache[serviceKey]) {
-            serviceCache[serviceKey] = new BaseDbService(dbName, tableName);
+  /**
+   * Query a table with WHERE conditions using Knex
+   * @param {string} dbName - Database name
+   * @param {string} tableName - Table name
+   * @param {Object} whereConditions - WHERE conditions as key-value pairs
+   * @returns {Promise<Array>} - Query results
+   */
+  async queryTable(dbName, tableName, whereConditions = {}) {
+    try {
+      const knexInstance = dbFactory.getConnection(dbName);
+
+      let query = knexInstance(tableName).select("*");
+
+      // Add WHERE conditions
+      Object.entries(whereConditions).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          query = query.where(key, value);
         }
-        
-        return serviceCache[serviceKey];
+      });
+
+      console.log("Query:", query.toString());
+      console.log("Where conditions:", whereConditions);
+
+      const result = await query;
+      return result;
+    } catch (error) {
+      console.error("Query failed:", error.message);
+      throw error;
     }
-    
-    /**
-     * Get a service for devices table in any database
-     * @param {string} dbName - Database name
-     */
-    getDevicesService(dbName = 'devicemanagement') {
-        const baseService = this.getDbService(dbName, 'devices');
-        
-        // Extend with device-specific methods
-        baseService.getDeviceBySerialNumber = async function(serialNumber) {
-            return this.query().where('serial_number', serialNumber).first();
-        };
-        
-        baseService.deviceExists = async function(deviceId) {
-            const result = await this.query()
-                .where('id', deviceId)
-                .count('id as count')
-                .first();
-            return parseInt(result.count) > 0;
-        };
-        
-        return baseService;
+  }
+  /**
+   * Get a general database service for any database and table
+   * @param {string} dbName - Database name
+   * @param {string} tableName - Table name
+   * @returns {BaseDbService} - Database service for the specified table
+   */
+  getDbService(dbName, tableName) {
+    const serviceKey = `${dbName}.${tableName}`;
+
+    if (!serviceCache[serviceKey]) {
+      serviceCache[serviceKey] = new BaseDbService(dbName, tableName);
     }
-    
-    /**
-     * Get a service for users table in any database
-     * @param {string} dbName - Database name
-     */
-    getUsersService(dbName = 'usermanagement') {
-        const baseService = this.getDbService(dbName, 'users');
-        
-        // Extend with user-specific methods
-        baseService.getUserByEmail = async function(email) {
-            return this.query().where('email', email).first();
-        };
-        
-        baseService.getUserByUsername = async function(username) {
-            return this.query().where('username', username).first();
-        };
-        
-        return baseService;
-    }
+
+    return serviceCache[serviceKey];
+  }
+
+  /**
+   * Get a service for devices table in any database
+   * @param {string} dbName - Database name
+   */
+  getDevicesService(dbName = "devicemanagement") {
+    const baseService = this.getDbService(dbName, "devices");
+
+    // Extend with device-specific methods
+    baseService.getDeviceBySerialNumber = async function (serialNumber) {
+      return this.query().where("serial_number", serialNumber).first();
+    };
+
+    baseService.deviceExists = async function (deviceId) {
+      const result = await this.query()
+        .where("id", deviceId)
+        .count("id as count")
+        .first();
+      return parseInt(result.count) > 0;
+    };
+
+    return baseService;
+  }
+
+  /**
+   * Get a service for users table in any database
+   * @param {string} dbName - Database name
+   */
+  getUsersService(dbName = "usermanagement") {
+    const baseService = this.getDbService(dbName, "users");
+
+    // Extend with user-specific methods
+    baseService.getUserByEmail = async function (email) {
+      return this.query().where("email", email).first();
+    };
+
+    baseService.getUserByUsername = async function (username) {
+      return this.query().where("username", username).first();
+    };
+
+    return baseService;
+  }
   getPasswordResetService(dbName = "iamdb") {
     const baseService = this.getDbService(dbName, "password_reset_requests");
 
@@ -187,6 +217,27 @@ class ServiceFactory {
         console.log("✅ Database validation passed");
         return { dbUser, dbProfile };
       },
+    };
+  }
+  getSupportEngagementService(dbName = "support_engagement") {
+    const categoryService = this.getDbService(dbName, "faq_categories");
+    const subcategoryService = this.getDbService(dbName, "faq_subcategories");
+    const resourcesService = this.getDbService(dbName, "faq_resources");
+    const carouselService = this.getDbService(dbName, "marketing_carousel");
+    const quoteService = this.getDbService(dbName, "quote_of_the_day");
+    const issueService = this.getDbService(dbName, "issues");
+    const faqService = this.getDbService(dbName, "faqs");
+    const likesService = this.getDbService(dbName, "likes");
+
+    return {
+      categoryService,
+      subcategoryService,
+      resourcesService,
+      carouselService,
+      quoteService,
+      issueService,
+      faqService,
+      likesService,
     };
   }
 }

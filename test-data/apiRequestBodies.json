@@ -46,8 +46,106 @@
     "request_id": "123"
   },
   "loginEmptyBody": {},
-  
+
   "mapStudentsToDevice": {
     "user_ids": []
+  },
+  "categories": {
+    "category_name": "Techincal Issues",
+    "description": "technical related"
+  },
+  "faq": {
+    "sub_category_id": "{sub_category_id}",
+    "question": "How to login",
+    "answer": "check the videos where the steps to login are mentioned",
+    "is_popular": true,
+    "resources": [
+      {
+        "resource_type": "video",
+        "description": "chekc the stpes",
+        "resource_url": "https://mira-content/login"
+      },
+      {
+        "resource_type": "video",
+        "description": "chekc the stpes",
+        "resource_url": "https://mira-content/login",
+        "thumbnail_url": "https://content"
+      }
+    ]
+  },
+  "issue": {
+    "category": "user password reset",
+    "description": "How to login",
+    "file": ["cmMtdXBsb2FkLTE3NDEzMTk1Njk0MTMtMg==/logan-weaver-lgnwvr-kKfM1PJ8g5k-unsplash (1).jpg","cmMtdXBsb2FkLTE3NDEzMTk1Njk0MTMtMw==/logan-weaver-lgnwvr-kKfM1PJ8g5k-unsplash.jpg"]
+  },
+  "resource": {
+    "is_like": "false",
+    "source": "faq"
+  },
+  "marketing-carousel": {
+    "image_url": "https://test",
+    "action_url": "faq",
+    "display_order": 1,
+    "active_from": "2025-05-01 12:00:09",
+    "active_to": "2027-06-01 10:00:00"
+  },
+  "quote": {
+    "quote_text": "Do the best job",
+    "author_name": "John",
+    "quote_date": "2025-04-01",
+    "show_days": [3, 6],
+    "is_active": true
+  },
+  "sub-category": {
+    "category_id": "CAT001",
+    "sub_category_name": "Started",
+    "description": "Getting started issues"
+  },
+  "categories-update": {
+    "category_name": "Family Issues updated",
+    "description": "technical related updates"
+  },
+  "faq-update": {
+    "question": "How to login is updated",
+    "answer": "check the videos where the steps to login are not mentioned and updated",
+    "is_popular": false,
+    "resources": [
+      {
+        "resource_id": "{resource_id}",
+        "resource_type": "video-updated",
+        "description": "chekc the stpes updated",
+        "resource_url": "https://mira-content/login/updated"
+      },
+      {
+        "resource_id": "{resource_id}",
+        "resource_type": "video-updated",
+        "description": "chekc the stpes updated",
+        "resource_url": "https://mira-content/login/updated",
+        "thumbnail_url": "https://content/updated"
+      }
+    ]
+  },
+  "issue-update": {
+    "category": "user password not available for updation",
+    "description": "How to l0gout is updated",
+    "attachments": [
+      "cmMtdXBsb2FkLTE3NDEzMTk1Njk0MTMtMg==/logan-weaver-lgnwvr-kKfM1PJ8g5k-unsplash (1).jpg",
+      "cmMtdXBsb2FkLTE3NDEzMTk1Njk0MTMtMw==/logan-weaver-lgnwvr-kKfM1PJ8g5k-unsplash.jpg"
+    ]
+  },
+  "marketing-carousel-update": {
+    "image_url": "https://image-url-updated",
+    "action_url": "faq-updated",
+    "display_order": 5,
+    "active_from": "2025-06-01 12:00:09",
+    "active_to": "2025-07-01 10:00:00"
+  },
+  "quote-update": {
+    "quote_text": "Do the great job updated",
+    "author_name": "Born updated",
+    "quote_date": "2025-07-01",
+    "show_days": [10, 7],
+    "is_active": false
   }
 }
+

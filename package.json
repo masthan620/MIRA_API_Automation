@@ -23,7 +23,8 @@
     "test:cliq": "wdio run wdio.conf.js --sendCliq",
     "test": "wdio run wdio.conf.js",
     "test:iam": "wdio run wdio.conf.js --spec ./features/api/identity-access-management/**/*.feature",
-    "test:device": "wdio run wdio.conf.js --spec ./features/api/device-management/**/*.feature"
+    "test:device": "wdio run wdio.conf.js --spec ./features/api/device-management/**/*.feature",
+    "test:support": "wdio run wdio.conf.js --spec ./features/api/support-engagement/**/*.feature"
   },
   "keywords": [],
   "author": "",

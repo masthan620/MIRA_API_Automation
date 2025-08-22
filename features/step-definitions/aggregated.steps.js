@@ -107,7 +107,7 @@ Then(/^verify the mapping of students to device$/, async function () {
 });
 
 Given(
-  /^As (a|an) (teacher|admin), I get all the "([^"]*)" requests for the school "([^"]*)"$/,
+  /^as (a|an) (teacher|admin), I get all the "([^"]*)" requests for the school "([^"]*)"$/,
   async function (article, user_type, request_type, school_code) {
     let limit = 1000;
     let page = 1;

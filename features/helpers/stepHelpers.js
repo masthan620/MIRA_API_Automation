@@ -171,3 +171,184 @@ export async function retryOperation(operation, maxRetries = 3, delay = 1000) {
     `Operation failed after ${maxRetries} attempts. Last error: ${lastError.message}`
   );
 }
+
+
+// Utility to resolve {placeholders} from multiple sources
+export function resolveValue(ctx, key, value) {
+  if (!(value.startsWith("{") && value.endsWith("}"))) {
+    console.log(`${yellow} Using hardcoded value for ${key}: ${value}`);
+    return value;
+  }
+
+  const savedKey = value.slice(1, -1);
+  const sources = [
+    ctx.created_resources,
+    ctx.finalRequestBody,
+    ctx,
+    global.testData,
+  ];
+
+  for (const source of sources) {
+    if (source && savedKey in source) {
+      const resolved = source[savedKey];
+      console.log(`${yellow} Resolved ${key} from saved value ${savedKey}: ${resolved}`);
+      return resolved;
+    }
+  }
+  throw new Error(`Could not resolve saved value: ${savedKey}`);
+}
+
+// Utility to check if key should be path param
+export function isPathParamKey(key) {
+  return /^(id|resource_id|carousel_id|category_id|subcategory_id|quote_id|issue_id|faq_id|user_id|device_id)$/i.test(
+    key
+  );
+}
+
+// Process raw table into { pathParams, queryParams }
+export function processParams(ctx, table, paramType) {
+  const pathParams = {};
+  const queryParams = {};
+
+  if (!table?.raw) return { pathParams, queryParams };
+
+  for (const [key, rawValue] of table.raw()) {
+    const value = resolveValue(ctx, key, rawValue);
+    const usePath = paramType === "path parameters" || isPathParamKey(key);
+
+    if (usePath) {
+      pathParams[key] = value;
+      console.log(`${green} Added ${key} as path parameter: ${value}`);
+    } else {
+      queryParams[key] = value;
+      console.log(`${green} Added ${key} as query parameter: ${value}`);
+    }
+  }
+
+  return { pathParams, queryParams };
+}
+
+
+// Utility: compare arrays
+function verifyArray(field, expected, actual) {
+  if (!Array.isArray(actual) || JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(
+      `${field} not updated correctly. Expected: ${JSON.stringify(expected)}, Got: ${JSON.stringify(actual)}`
+    );
+  }
+}
+
+// Utility: compare booleans
+function verifyBoolean(field, expected, actual) {
+  if (actual !== expected) {
+    throw new Error(`${field} not updated correctly. Expected: ${expected}, Got: ${actual}`);
+  }
+}
+
+// Utility: compare date fields (ignoring timezones)
+function verifyDate(field, expected, actual) {
+  const expectedDatePart = expected.split(" ")[0];
+  const actualDatePart = actual.split("T")[0];
+
+  if (expectedDatePart !== actualDatePart) {
+    throw new Error(
+      `${field} date part not updated correctly. Expected: ${expectedDatePart}, Got: ${actualDatePart}`
+    );
+  }
+  console.log(`${green} ✅ Date field ${field} matches: ${expectedDatePart}`);
+}
+
+// Utility: compare primitive values
+function verifyPrimitive(field, expected, actual) {
+  if (expected !== actual) {
+    throw new Error(`${field} not updated correctly. Expected: ${expected}, Got: ${actual}`);
+  }
+}
+
+// Main field verification
+export function verifyUpdatedFields(expectedData, afterData) {
+  for (const field in expectedData) {
+    if (!(field in afterData)) continue;
+
+    const expected = expectedData[field];
+    const actual = afterData[field];
+
+    // Skip __REMOVE__ fields - they are handled by verifyUnchangedFields
+    if (expected === "__REMOVE__") continue;
+
+    if (Array.isArray(expected)) verifyArray(field, expected, actual);
+    else if (typeof expected === "boolean")
+      verifyBoolean(field, expected, actual);
+    else if (/_from$|_to$|_at$|date/.test(field))
+      verifyDate(field, expected, actual);
+    else verifyPrimitive(field, expected, actual);
+  }
+}
+
+// Verify unchanged fields
+export function verifyUnchangedFields(beforeData, afterData, expectedData) {
+  // Only check fields that are explicitly mentioned in the table
+  // This prevents checking fields that come from the base template but weren't in the test table
+  for (const field in expectedData) {
+    // Skip metadata fields
+    if (["retrieved_at", "updated_at"].includes(field)) continue;
+
+    // If field was marked for removal (__REMOVE__), verify it became null
+    if (expectedData[field] === "__REMOVE__") {
+      if (afterData[field] !== null) {
+        throw new Error(
+          `${field} should be null after removal. Got: ${afterData[field]}`
+        );
+      }
+      console.log(
+        `${green} ✅ Field ${field} was successfully removed (set to null)`
+      );
+    }
+  }
+
+  // For fields not explicitly mentioned in the table, verify they remained unchanged
+  for (const field in beforeData) {
+    // Skip metadata fields
+    if (["retrieved_at", "updated_at"].includes(field)) continue;
+
+    // Skip fields that were explicitly mentioned in the table
+    if (field in expectedData) continue;
+
+    // For fields not in the update request, verify they remained unchanged
+    if (beforeData[field] !== afterData[field]) {
+      throw new Error(
+        `${field} should remain unchanged. Before: ${beforeData[field]}, After: ${afterData[field]}`
+      );
+    }
+    console.log(`${green} ✅ Field ${field} remained unchanged: ${beforeData[field]}`);
+  }
+}
+
+// Verify metadata timestamps
+export function verifyTimestamps(beforeData, afterData) {
+  if ("created_at" in beforeData && "created_at" in afterData) {
+    if (afterData.created_at !== beforeData.created_at) {
+      throw new Error(
+        `created_at should not change. Before: ${beforeData.created_at}, After: ${afterData.created_at}`
+      );
+    }
+  }
+
+  if ("updated_at" in beforeData && "updated_at" in afterData) {
+    if (afterData.updated_at === beforeData.updated_at) {
+      throw new Error(
+        `updated_at should change. Before: ${beforeData.updated_at}, After: ${afterData.updated_at}`
+      );
+    }
+
+    if ("created_at" in afterData) {
+      const createdDate = new Date(afterData.created_at);
+      const updatedDate = new Date(afterData.updated_at);
+      if (updatedDate <= createdDate) {
+        throw new Error(
+          `updated_at should be more recent than created_at. created_at: ${afterData.created_at}, updated_at: ${afterData.updated_at}`
+        );
+      }
+    }
+  }
+}

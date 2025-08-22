@@ -17,7 +17,6 @@ const loadRequestBody = (key) => {
     const requestBodies = JSON.parse(raw);
     return requestBodies[key];
 };
-
 // Utility: Apply overrides with support for dot notation
 const applyOverrides = (base, overrides) => {
     for (const key in overrides) {
@@ -35,40 +34,31 @@ const applyOverrides = (base, overrides) => {
     }
     return base;
 };
-
-
 const findKeyDeep = (obj, keyToFind) => {
   if (typeof obj !== 'object' || obj === null) return undefined;
 
   if (Object.prototype.hasOwnProperty.call(obj, keyToFind)) {
     return obj[keyToFind];
   }
-
   for (const key in obj) {
     const found = findKeyDeep(obj[key], keyToFind);
     if (found !== undefined) {
       return found;
     }
   }
-
   return undefined;
 };
-
-
 Given(/^I send a GET request to "([^"]*)"$/, async function(url)  {
     this.response = await apiClient.get(url); 
 });
-
 Given(/^I send a POST request to "([^"]*)" with body:$/, async function(url, body)  {
     let requestBody = loadRequestBody("createDevice");
 
     this.response = await apiClient.post(url, requestBody); // 
 });
-
 Then(/^the response status code should be (\d+)$/, async function(expectedStatusCode) {
     expect(this.response.status).toEqual(parseInt(expectedStatusCode));
 });
-
 Given(/^I send a POST request to "([^"]*)" using "([^"]*)" request body$/, async function(endpoint, bodyKey) {
     let requestBody = loadRequestBody(bodyKey);
     if (!requestBody) {
@@ -84,7 +74,6 @@ Given(/^I send a POST request to "([^"]*)" using "([^"]*)" request body$/, async
     console.log(`${endpoint} took ${this.responseTime}ms`);
   }
 );
-
 // POST with request body and dynamic overrides
 Given(/^I send a POST request to "([^"]*)" using "([^"]*)" request body with overrides:$/, async function(endpoint, bodyKey, table) {
     let requestBody = loadRequestBody(bodyKey);
@@ -93,8 +82,6 @@ Given(/^I send a POST request to "([^"]*)" using "([^"]*)" request body with ove
     console.log("Final Request Body →", JSON.stringify(requestBody, null, 2));
     this.response = await apiClient.post(endpoint, requestBody);
 });
-
-
 Then('debug response structure', function() {
     console.log('Response type:', typeof this.response);
     //console.log('Response has body:', !!this.response.body);
@@ -118,8 +105,6 @@ Then('debug response structure', function() {
     
     console.log('Extracted data keys:', Object.keys(responseData));
 });
-
-
 Then('response should have fields {string}', function (fieldList) {
   const responseData = this.response.body || this.response.data || this.response;
   const fields = fieldList.split(',').map(f => f.trim());
@@ -131,8 +116,6 @@ Then('response should have fields {string}', function (fieldList) {
     console.log(`✅ Found "${field}": ${foundValue}`);
   });
 });
-
-
 Then("response should have the following properties:", function (dataTable) {
   const responseData = getResponseData(this.response);
   const expectedFields = dataTable.raw();
@@ -158,7 +141,6 @@ Then("response should have the following properties:", function (dataTable) {
     this[fieldName] = actualValue;
   });
 });
-
 Then(
   /^the response time should be less than (\d+) milliseconds$/,
   async function (expectedTime) {
@@ -170,7 +152,6 @@ Then(
     );
   }
 );
-
 Then(
   "response should contain request data as specified:",
   function (dataTable) {
@@ -190,22 +171,6 @@ Then(
     });
   }
 );
-
-Given(/^i have valid authentication token$/, async function () {
-  this.authToken = process.env.ACCESS_TOKEN;
-  console.error(`Using auth token: ${this.authToken}`);
-});
-
-Given(/^i have invalid authentication token$/, function () {
-  this.authToken = global.testData[invalid_auth_token] || testData["invalid_auth_token"];
-  console.log(`${yellow}Using invalid auth token: ${this.authToken}`);
-});
-
-Given(/^i do not have authentication token$/, function () {
-  this.authToken = null;
-});
-
-
 Then(/^response should be an array with device mappings$/, function () {
     const responseData = this.response.body || this.response.data || this.response;
     
@@ -213,3 +178,26 @@ Then(/^response should be an array with device mappings$/, function () {
     expect(responseData.length).toBeGreaterThan(0);
     console.log(`${green}✅ Response is array with ${responseData.length} device mappings`);
 });
+Given(/^i have valid authentication token$/, async function () {
+  this.authToken = process.env.ACCESS_TOKEN;
+  console.log(`${yellow}Using valid auth token: ${this.authToken}`);
+});
+//Add missing quotes around the key
+Given(/^i have invalid authentication token$/, function () {
+    this.authToken = testData["invalid_auth_token"];
+    console.log(`${yellow}Using invalid auth token: ${this.authToken}`);
+});
+Given(/^i do not have authentication token$/, function () {
+  this.authToken = null;
+  console.log(`${yellow}Using no auth token`);
+});
+//ADD this missing step for empty token
+Given(/^i have empty authentication token$/, function () {
+  this.authToken = "";
+});
+Then(/^response message should contain "([^"]*)"$/, function (expectedText) {
+  const responseData = this.response.body || this.response.data || this.response;
+  expect(responseData.message).toContain(expectedText);
+  console.log(`✅ Message contains: "${expectedText}"`);
+});
+
