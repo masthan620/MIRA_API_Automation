@@ -35,6 +35,54 @@ Feature: End to End Scenarios
     And response should have the following properties:
       | message | no_device_error_msg |
   
+
+@device_management @e2e_cross_validation @positive
+Scenario: MIRA-E2E-013 - Complete Device Lifecycle with Field Validation
+  Given register device
+  Then the response status code should be 200
+  And response should have fields "device_id, message"
+  And store device_id from registration
+  
+  And map the device to school
+  Then the response status code should be 200
+  And response should have fields "device_color, message, device_no"
+  And store device mapping response fields
+  
+  And get device details
+  Then the response status code should be 200
+  And response should be an array with device mappings
+  And response should have fields "organisation_code, device_color, device_no"
+  #And verify device_color matches stored mapping color
+  #And verify device_no matches stored mapping number
+  #And verify organisation_code matches expected organisation
+  
+  Given get the organization details for device
+  Then the response status code should be 200
+  And response should have fields "device_id, device_color, active, user_count"
+  And verify device_id matches stored registration device_id
+  And verify device_color matches stored mapping color
+  #And verify user count is "0"
+  #And verify device is active in organisation
+  
+  And map students to device
+  Then the response status code should be 200
+  And verify success array matches sent users
+  And verify all success entries have stored device_id
+  And verify failure array is empty
+  
+  Given get the organization details for device:
+  Then the response status code should be 200
+  And verify device_id matches stored registration device_id
+  And verify user count is "2"
+
+
+
+
+
+
+
+
+
   @e2e
   Scenario: Verify End-to-End Device Registration, Mapping, and Student Login Process
     Given register device

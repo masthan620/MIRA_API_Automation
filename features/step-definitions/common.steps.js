@@ -201,3 +201,143 @@ Then(/^response message should contain "([^"]*)"$/, function (expectedText) {
   console.log(`✅ Message contains: "${expectedText}"`);
 });
 
+Then(/^verify success array matches sent users$/, function () {
+    const responseData = this.response.body || this.response.data || this.response;
+    const sentUserIds = this.mappedUserIds || this.sentData?.user_ids || [];
+    
+    expect(responseData.success.length).toEqual(sentUserIds.length);
+    
+    sentUserIds.forEach(userId => {
+        const found = responseData.success.some(item => item.user_id === userId);
+        expect(found).toBe(true);
+    });
+    
+    console.log(`Verified ${sentUserIds.length} users in success array`);
+});
+
+Then(/^verify all success entries have correct device_id$/, function () {
+    const responseData = this.response.body || this.response.data || this.response;
+    const expectedDeviceId = this.deviceId;
+    
+    responseData.success.forEach(item => {
+        expect(item.device_id).toEqual(expectedDeviceId);
+    });
+    
+    console.log(`All entries have device_id: ${expectedDeviceId}`);
+});
+
+Then(/^verify failure array is empty$/, function () {
+    const responseData = this.response.body || this.response.data || this.response;
+    expect(responseData.failure.length).toEqual(0);
+    console.log('Failure array is empty');
+});
+
+// Add message contains validation for dynamic error messages
+Then(/^response message should contain "([^"]*)"$/, function (expectedText) {
+  const responseData = this.response.body || this.response.data || this.response;
+  expect(responseData.message).toContain(expectedText);
+  console.log(`Message contains: "${expectedText}"`);
+});
+
+
+// Store device_id from registration response
+Then(/^store device_id from registration$/, function () {
+    this.storedRegistrationDeviceId = this.deviceId || this.regResponse?.data?.device_id;
+    console.log(`Stored registration device_id: ${this.storedRegistrationDeviceId}`);
+});
+
+// Store device mapping response fields
+Then(/^store device mapping response fields$/, function () {
+    const responseData = this.response.body || this.response.data || this.response;
+    this.storedMappingColor = responseData.device_color;
+    this.storedMappingDeviceNo = responseData.device_no;
+    
+    console.log(`Stored mapping fields: color=${this.storedMappingColor}, device_no=${this.storedMappingDeviceNo}`);
+});
+
+// Verify device_color matches stored mapping color (works with arrays or objects)
+Then(/^verify device_color matches stored mapping color$/, function () {
+    const responseData = this.response.body || this.response.data || this.response;
+    const expectedColor = this.storedMappingColor;
+    
+    let actualColor;
+    if (Array.isArray(responseData)) {
+        actualColor = responseData[0]?.device_color;
+    } else {
+        actualColor = responseData.device_color;
+    }
+    
+    expect(actualColor).toEqual(expectedColor);
+    console.log(`Device color matches across responses: ${expectedColor}`);
+});
+
+// Verify device_no matches stored mapping number (works with arrays or objects)  
+Then(/^verify device_no matches stored mapping number$/, function () {
+    const responseData = this.response.body || this.response.data || this.response;
+    const expectedDeviceNo = this.storedMappingDeviceNo;
+    
+    let actualDeviceNo;
+    if (Array.isArray(responseData)) {
+        actualDeviceNo = responseData[0]?.device_no;
+    } else {
+        actualDeviceNo = responseData.device_no;
+    }
+    
+    expect(actualDeviceNo).toEqual(expectedDeviceNo);
+    console.log(`Device number matches across responses: ${expectedDeviceNo}`);
+});
+
+// Verify device_id matches stored registration device_id
+Then(/^verify device_id matches stored registration device_id$/, function () {
+    const responseData = this.response.body || this.response.data || this.response;
+    const expectedDeviceId = this.storedRegistrationDeviceId;
+    
+    expect(responseData.device_id).toEqual(expectedDeviceId);
+    console.log(`Device_id matches registration: ${expectedDeviceId}`);
+});
+
+// Verify organisation_code matches expected organisation (works with arrays)
+Then(/^verify organisation_code matches expected organisation$/, function () {
+    const responseData = this.response.body || this.response.data || this.response;
+    const expectedOrgCode = testData["organisation_code"];
+    
+    let actualOrgCode;
+    if (Array.isArray(responseData)) {
+        actualOrgCode = responseData[0]?.organisation_code;
+    } else {
+        actualOrgCode = responseData.organisation_code;
+    }
+    
+    expect(actualOrgCode).toEqual(expectedOrgCode);
+    console.log(`Organisation code matches: ${expectedOrgCode}`);
+});
+
+// Verify all success entries have stored device_id
+Then(/^verify all success entries have stored device_id$/, function () {
+    const responseData = this.response.body || this.response.data || this.response;
+    const expectedDeviceId = this.storedRegistrationDeviceId;
+    
+    expect(responseData.success).toBeDefined();
+    expect(Array.isArray(responseData.success)).toBe(true);
+    
+    responseData.success.forEach((item, index) => {
+        expect(item.device_id).toEqual(expectedDeviceId);
+        console.log(`Success entry ${index + 1}: device_id matches registration (${expectedDeviceId})`);
+    });
+});
+
+// Verify exact user count
+Then(/^verify user count is "([^"]*)"$/, function (expectedCount) {
+    const responseData = this.response.body || this.response.data || this.response;
+    
+    expect(responseData.user_count).toEqual(parseInt(expectedCount));
+    console.log(`User count verified: ${responseData.user_count} (expected: ${expectedCount})`);
+});
+
+// Verify device is active in organisation
+Then(/^verify device is active in organisation$/, function () {
+    const responseData = this.response.body || this.response.data || this.response;
+    
+    expect(responseData.active).toBe(true);
+    console.log(`Device is active: ${responseData.active}`);
+});

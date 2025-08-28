@@ -39,9 +39,6 @@ Then('verify verify device_id i.e {string} in database', async function(property
         throw error;
     }
 });
-/**
- * Alternative simplified step for device verification
- */
 Then('verify the device ID from response exists in database', async function() {
     // Get the device ID from world object
     expect(this.device_id, 'No device_id found from previous steps').to.exist;
@@ -65,7 +62,6 @@ Then('verify the device ID from response exists in database', async function() {
         throw error;
     }
 });
-
 Then('verify that all device input values are correctly stored in the database', async function() {
     const responseData = this.response.body || this.response.data.data || this.response;
     const deviceId = responseData.device_id;

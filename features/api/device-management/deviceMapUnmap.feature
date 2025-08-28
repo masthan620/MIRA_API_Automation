@@ -358,3 +358,13 @@ Feature: Device Management - Device Mapping & Retrieval
       Then the response status code should be 401
       And response should have the following properties:
         | message | Auth_token_error_Msg |    
+
+    Scenario: MIRA-1431 - Verify [Get School Devices] behavior for a school with no devices.
+      Given register device
+      Then the response status code should be 200
+      When get the organization details for device
+      Then the response status code should be 404
+      And response should have the following properties:
+        | status  | status_false              |
+        | message | device_notfound_error_msg |
+      And response should have fields "code, correlationId"       

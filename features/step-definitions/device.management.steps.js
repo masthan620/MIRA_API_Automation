@@ -374,7 +374,6 @@ Given(/^get the organization details for device:$/, async function (table) {
     this.deviceId = deviceId; // Store for later use
     this.organisationCode = organisationCode; // Store for later use
 });
-
 // Unmap device from school WITHOUT overrides (NO table)
 Given(/^unmap the device from school$/, async function () {
     const deviceId = this.regResponse?.data?.device_id || 
@@ -453,4 +452,114 @@ Given(/^unmap the device from school:$/, async function (table) {
     }
     
     this.deviceId = deviceId;
+});
+// Add these student mapping steps to your existing device.management.steps.js file
+
+// Map students to device WITHOUT overrides (NO table)
+Given(/^map students to device$/, async function () {
+    const deviceId = this.deviceId || 
+                     this.regResponse?.data?.device_id || 
+                     this.regResponse?.body?.data?.device_id || 
+                     this.regResponse?.data?.data?.device_id;
+    
+    const organisationCode = testData["organisation_code"];
+    
+    if (!deviceId) {
+        console.error("Available response structure:", JSON.stringify(this.regResponse, null, 2));
+        throw new Error("deviceId not found from previous registration step.");
+    }
+    
+    let endpoint = process.env.MAP_STUDENTS_TO_DEVICE_ENDPOINT;
+    endpoint = endpoint.replace('{organisation_code}', organisationCode);
+    endpoint = endpoint.replace('{device_id}', deviceId);
+    
+    console.log(`Mapping students to device ${deviceId} in organization ${organisationCode}`);
+    console.log(`Endpoint: ${endpoint}`);
+    
+    const requestBody = {
+        user_ids: testData["student_user_ids"]
+    };
+    
+    console.log("Request Body →", JSON.stringify(requestBody, null, 2));
+    
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`Using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    
+    if (authToken !== null) {
+        headers['Authorization'] = authToken;
+    }
+    
+    console.log("Request Headers →", JSON.stringify(headers, null, 2));
+    
+    try {
+        this.response = await apiClient.post(endpoint, requestBody, headers);
+    } catch (error) {
+        this.response = error.response;
+    }
+    
+    this.deviceId = deviceId;
+    this.mappedUserIds = testData["student_user_ids"];
+    this.sentData = { device_id: deviceId, organisation_code: organisationCode, user_ids: testData["student_user_ids"] };
+});
+// Map students to device WITH overrides (WITH table)
+Given(/^map students to device:$/, async function (table) {
+    let deviceId = this.deviceId || 
+                   this.regResponse?.data?.device_id || 
+                   this.regResponse?.body?.data?.device_id || 
+                   this.regResponse?.data?.data?.device_id;
+    
+    let organisationCode = testData["organisation_code"];
+    let userIds = testData["student_user_ids"];
+    const overrides = Object.fromEntries(table.raw().map(([k, v]) => [k, v]));
+    for (const key in overrides) {
+        const value = testData[overrides[key]] !== undefined ? testData[overrides[key]] : overrides[key];
+        if (key === 'device_id') {
+            deviceId = value;
+        } else if (key === 'organisation_code') {
+            organisationCode = value;
+        } else if (key === 'user_ids') {
+            try {
+                if (testData[overrides[key]]) {
+                    userIds = testData[overrides[key]];
+                } else {
+                    userIds = JSON.parse(overrides[key]);
+                }
+            } catch (error) {
+                userIds = [overrides[key]];
+            }
+        }
+    }
+    let endpoint = process.env.MAP_STUDENTS_TO_DEVICE_ENDPOINT;
+    endpoint = endpoint.replace('{organisation_code}', organisationCode);
+    endpoint = endpoint.replace('{device_id}', deviceId);
+    console.log(`Mapping students to device ${deviceId} in organization ${organisationCode}`);
+    console.log(`Final Endpoint: ${endpoint}`);
+    console.log(`User IDs: ${JSON.stringify(userIds)}`);
+    
+    const requestBody = {
+        user_ids: userIds
+    };
+    console.log("Request Body →", JSON.stringify(requestBody, null, 2));
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`Using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    if (authToken !== null) {
+        headers['Authorization'] = authToken;
+    }
+    console.log("Request Headers →", JSON.stringify(headers, null, 2)); 
+    try {
+        this.response = await apiClient.post(endpoint, requestBody, headers);
+    } catch (error) {
+        this.response = error.response;
+    }
+    this.deviceId = deviceId;
+    this.mappedUserIds = userIds;
+    this.sentData = { device_id: deviceId, organisation_code: organisationCode, user_ids: userIds };
 });

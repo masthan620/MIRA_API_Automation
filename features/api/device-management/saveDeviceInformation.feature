@@ -1,6 +1,6 @@
 @reg_device
 Feature: Save Device Information
-  @MIRA-1657
+
   Scenario: MIRA-1657 - Verify Successful Registration of a Device with Valid Input Data
     Given register device
     Then the response status code should be 200

@@ -1,1 +1,1 @@
-[{"uid":"ea610570b2c72bef","name":"MIRA-1657 - Verify Successful Registration of a Device with Valid Input Data","time":{"start":1755845020150,"stop":1755845022000,"duration":1850},"status":"passed","severity":"normal"}]
+[{"uid":"63d074f11f0e40a8","name":"MIRA-1496 - Map Students to Devices- Verify the API for successful mapping of students to device","time":{"start":1756345507235,"stop":1756345508794,"duration":1559},"status":"failed","severity":"normal"}]
