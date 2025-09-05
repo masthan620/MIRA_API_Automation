@@ -1,6 +1,7 @@
 import serviceFactory from "../../services/service-factory";
 import { getResponseData } from "../helpers/responseValidator.js";
 import { red, green, yellow, makeTimedRequest } from "../../utils/apiClient.js";
+import { fetchUsername } from "./userResolver.js";
 
 export const resolveRequestId = (context, requestId) => {
   if (requestId === "{stored_request_id}" && context.stored_request_id) {
@@ -17,17 +18,29 @@ export const resolveRequestId = (context, requestId) => {
 };
 
 export const storeUserRequestData = (context, username, status) => {
-  const responseData = getResponseData(context.response);
-
-  const requests = responseData.data || responseData.passwordRequests;
+  const requests = getResponseData(context.response);
   if (!requests || !Array.isArray(requests)) {
     throw new Error(
       'Response does not contain a valid "data" or "passwordRequests" array'
     );
   }
+  console.log("requests", requests);
   const userRequest = requests.find(
     (req) => req.username === username && req.status === status
   );
+  console.log("userRequest", userRequest);
+
+  if (!userRequest) {
+    const availableRequests = requests.map((r) => ({
+      username: r.username,
+      status: r.status,
+    }));
+    expect(userRequest).toBeDefined(
+      `No password reset request found for username: ${username} with status: ${status}. Available requests: ${JSON.stringify(
+        availableRequests
+      )}`
+    );
+  }
 
   context.stored_user_id = userRequest.user_id;
   context.stored_request_id = userRequest.id;
@@ -39,14 +52,10 @@ export const storeUserRequestData = (context, username, status) => {
   console.log(`${green} For username: ${username} with status: ${status}`);
 };
 
-export const authenticateUser = async (
-  context,
-  username,
-  password
-) => {
-
+export const authenticateUser = async (context, username_variable, password) => {
   const endpoint = process.env.LOGIN_ENDPOINT;
-  const requestBody = { username, password};
+  let username = fetchUsername(username_variable);
+  const requestBody = { username, password };
   await makeTimedRequest(context, "post", endpoint, requestBody);
   if (context.response.status == 200) {
     const { data } = context.response;
@@ -99,127 +108,170 @@ export const getResourceConfig = (resource_type) => {
       baseKey: "quote",
       idField: "quote_id",
     },
+    "Today Quote": {
+      endpoint: process.env.TODAY_QUOTE_ENDPOINT,
+      baseKey: "today-quote",
+      idField: "quote_id",
+    },
     "Marketing Carousel": {
       endpoint: process.env.MARKETING_CAROUSEL_ENDPOINT,
       baseKey: "marketing-carousel",
       idField: "carousel_item_id",
     },
+    "FAQ Likes": {
+      endpoint: "/api/support-engagement/v1/like-resources",
+      baseKey: "faq-likes",
+      idField: "like_id",
+      dependencies: ["faq_id"],
+    },
+    "Resource Likes": {
+      endpoint: "/api/support-engagement/v1/like-resources",
+      baseKey: "resource-likes",
+      idField: "like_id",
+      dependencies: ["resource_id"],
+    },
+    Likes: {
+      endpoint: "/api/support-engagement/v1/like-resources",
+      baseKey: "likes",
+      idField: "like_id",
+      dependencies: ["resource_id"],
+    },
   };
 
   return configs[resource_type] || {};
 };
-export const injectID = (context, resource_type, requestBody) => {
+export const injectID = (
+  context,
+  resource_type,
+  requestBody,
+  isCreation = false
+) => {
   const updatedBody = { ...requestBody };
-  
+  if (!context.created_resources) return updatedBody;
+
+  // Helper to get ID from normalized resource
+  const getStoredId = (type, idField) => {
+    const normalizedType = normalizeResourceType(type);
+    return context.created_resources[normalizedType]?.[idField];
+  };
+
+  // Helper to inject ID if placeholder exists
+  const injectIdIfNeeded = (field, value) => {
+    const placeholder = `{${field}}`;
+    if (!updatedBody[field] || updatedBody[field] === placeholder) {
+      if (value) {
+        updatedBody[field] = value;
+        console.log(`${green} 🔗 Injected ${field}: ${value}`);
+      } else {
+        console.log(
+          `${yellow} Warning: No ${field} found in created resources. Available:`,
+          Object.keys(context.created_resources)
+        );
+      }
+    }
+  };
+
   switch (resource_type) {
     case "FAQ Subcategory":
-      if (context.created_resources?.["FAQ Category"]?.category_id) {
-        updatedBody.category_id =
-          context.created_resources["FAQ Category"].category_id;
-        console.log(
-          `${green} 🔗 Injected category_id: ${updatedBody.category_id}`
-        );
-      }
-      break;
-      
-    case "FAQ":
-      if (context.created_resources?.["FAQ Subcategory"]?.sub_category_id) {
-        updatedBody.sub_category_id =
-          context.created_resources["FAQ Subcategory"].sub_category_id;
-        console.log(
-          `${green} 🔗 Injected sub_category_id: ${updatedBody.sub_category_id}`
-        );
-      }
+      injectIdIfNeeded(
+        "category_id",
+        getStoredId("FAQ Category", "category_id")
+      );
       break;
 
-    default:
+    case "FAQ":
+      if (isCreation) {
+        injectIdIfNeeded(
+          "sub_category_id",
+          getStoredId("FAQ Subcategory", "sub_category_id")
+        );
+      }
+
+      // Handle resources array
+      if (Array.isArray(updatedBody.resources)) {
+        const storedResources = context.created_resources.RESOURCES;
+        if (Array.isArray(storedResources)) {
+          updatedBody.resources = updatedBody.resources.map(
+            (resource, index) => {
+              const storedResource = storedResources[index];
+              if (
+                resource.resource_id === "{resource_id}" &&
+                storedResource?.resource_id
+              ) {
+                return { ...resource, resource_id: storedResource.resource_id };
+              }
+              return resource;
+            }
+          );
+        }
+      }
       break;
   }
 
   return updatedBody;
 };
 
+// Helper to normalize resource type for consistent storage
+const normalizeResourceType = (type) => type.toUpperCase().replace(/\s+/g, "_");
+
 export const storeCreatedResource = (context, resource_type) => {
-  if (context.response?.status === 201 || context.response?.status === 200) {
-    const responseData =
-      context.response.data?.data ||
-      context.response.data ||
-      context.response.body;
-    const config = getResourceConfig(resource_type);
+  if (context.response?.status !== 201 && context.response?.status !== 200)
+    return;
 
-    if (!context.created_resources) {
-      context.created_resources = {};
-    }
+  // Initialize storage
+  if (!context.created_resources) context.created_resources = {};
 
-    // Handle case where responseData is an array (like FAQ creation)
-    if (Array.isArray(responseData) && responseData.length > 0) {
-      if (resource_type === "FAQ") {
-        // For FAQ creation, store both FAQ and its resources
-        const faqData = responseData[0];
-        const resourceData = responseData.slice(1); // All objects after the first are resources
+  const config = getResourceConfig(resource_type);
+  const responseData =
+    context.response.data?.data ||
+    context.response.data ||
+    context.response.body;
 
-        // Store the FAQ
-        const faqId = faqData[config.idField];
-        if (faqId) {
-          context.created_resources[resource_type] = {
-            ...faqData,
-            primary_id: faqId,
-          };
-          console.log(`${green} ✅ Stored FAQ with ID: ${faqId}`);
+  // Helper to store a resource
+  const storeResource = (data, type) => {
+    if (!data || !data[config.idField]) return;
+    const normalizedType = normalizeResourceType(type);
+    context.created_resources[normalizedType] = {
+      ...data,
+      primary_id: data[config.idField],
+    };
+    console.log(`✅ Stored ${type} with ID: ${data[config.idField]}`);
+  };
 
-          // Store FAQ resources
-          resourceData.forEach((resource, index) => {
-            if (resource.resource_id) {
-              if (!context.created_resources["FAQ Resource"]) {
-                context.created_resources["FAQ Resource"] = [];
-              }
-              context.created_resources["FAQ Resource"].push({
-                ...resource,
-                primary_id: resource.resource_id,
-              });
-              console.log(
-                `${green} ✅ Stored FAQ Resource ${index + 1} with ID: ${
-                  resource.resource_id
-                }`
-              );
-            }
-          });
-        }
-      } else {
-        // For other resource types, store the first item
-        const resourceData = responseData[0];
-        const resourceId = resourceData[config.idField];
-        if (resourceId) {
-          context.created_resources[resource_type] = {
-            ...resourceData,
-            primary_id: resourceId,
-          };
-          console.log(
-            `${green} ✅ Stored ${resource_type} with ID: ${resourceId}`
-          );
-        }
-      }
-    } else {
-      // Handle single object response
-      const resourceId = responseData[config.idField];
-      if (resourceId) {
-        context.created_resources[resource_type] = {
-          ...responseData,
-          primary_id: resourceId,
-        };
-        console.log(
-          `${green} ✅ Stored ${resource_type} with ID: ${resourceId}`
-        );
-      }
+  // Extract main resource data
+  const resourceKey = resource_type.toLowerCase();
+  const mainData =
+    responseData?.data?.[resourceKey] ||
+    responseData?.[resourceKey] ||
+    responseData;
+
+  // Store main resource
+  storeResource(mainData, resource_type);
+
+  // Store any associated resources
+  const resources = responseData?.data?.resources || responseData?.resources;
+  if (Array.isArray(resources)) {
+    const resourcesList = resources
+      .filter((r) => r.resource_id)
+      .map((r) => ({ ...r, primary_id: r.resource_id }));
+    if (resourcesList.length) {
+      context.created_resources.RESOURCES = resourcesList;
+      console.log(`✅ Stored ${resourcesList.length} resource(s)`);
     }
   }
 };
 export const getCreatedResourceId = (context, resource_type) => {
-  if (context.created_resources && context.created_resources[resource_type]) {
-    return context.created_resources[resource_type].primary_id;
+  const normalizedType = normalizeResourceType(resource_type);
+  if (!context.created_resources?.[normalizedType]?.primary_id) {
+    console.log(
+      "Available resources:",
+      Object.keys(context.created_resources || {})
+    );
+    throw new Error(
+      `No created ID found for ${resource_type}. Please create a ${resource_type} first.`
+    );
   }
-  
-  throw new Error(`No created ID found for ${resource_type}. Please create a ${resource_type} first.`);
+  return context.created_resources[normalizedType].primary_id;
 };
 
 export const isPlural = (resourceType) => {
@@ -283,7 +335,7 @@ export const fieldMappings = {
   }
 };
 
-const METADATA_FIELDS = ["created_at", "updated_at", "resources"];
+const METADATA_FIELDS = ["created_at", "updated_at", "resources", "has_liked"];
 const DATE_FIELD_REGEX =
   /(active_from|active_to|created_at|updated_at|_date)$/i;
 // Compare date-only fields (handles timezone differences)
@@ -327,56 +379,49 @@ function compareDates(field, apiValue, dbValue, id, errors) {
   }
 }
 
-// Compare a single record
+function normalizeValue(value) {
+  return Array.isArray(value) ? value.join(",") : value;
+}
+
+function logMismatch(field, apiVal, dbVal) {
+  console.log(`DEBUG: Field ${field} comparison failed:`);
+  console.log(
+    `  API value: "${apiVal}" (type: ${typeof apiVal}, length: ${
+      apiVal?.length
+    })`
+  );
+  console.log(
+    `  DB value: "${dbVal}" (type: ${typeof dbVal}, length: ${dbVal?.length})`
+  );
+  console.log(`  API original: ${JSON.stringify(apiVal)}`);
+  console.log(`  DB original: ${JSON.stringify(dbVal)}`);
+}
+
 function compareRecord(apiRecord, dbRecord, idField, errors, resourceName) {
   for (const [field, apiValue] of Object.entries(apiRecord)) {
-    if (METADATA_FIELDS.includes(field)) continue; // skip metadata
+    if (METADATA_FIELDS.includes(field)) continue;
 
     const dbValue = dbRecord[field];
     if (dbValue === undefined) {
-      errors.push(`${resourceName} ${apiRecord[idField]} missing field in DB: ${field}`);
+      errors.push(
+        `${resourceName} ${apiRecord[idField]} missing field in DB: ${field}`
+      );
       continue;
     }
 
     if (DATE_FIELD_REGEX.test(field)) {
       compareDates(field, apiValue, dbValue, apiRecord[idField], errors);
-    } else {
-      // Handle array to string conversion for comparison
-      let apiValueToCompare = apiValue;
-      let dbValueToCompare = dbValue;
+      continue;
+    }
 
-      // If API value is an array and DB value is a string, convert array to string
-      if (Array.isArray(apiValue) && typeof dbValue === "string") {
-        apiValueToCompare = apiValue.join(",");
-      }
-      // If DB value is an array and API value is a string, convert array to string
-      else if (Array.isArray(dbValue) && typeof apiValue === "string") {
-        dbValueToCompare = dbValue.join(",");
-      }
-      // If both are arrays, convert both to strings for comparison
-      else if (Array.isArray(apiValue) && Array.isArray(dbValue)) {
-        apiValueToCompare = apiValue.join(",");
-        dbValueToCompare = dbValue.join(",");
-      }
+    const apiVal = normalizeValue(apiValue);
+    const dbVal = normalizeValue(dbValue);
 
-      if (apiValueToCompare !== dbValueToCompare) {
-        console.log(`DEBUG: Field ${field} comparison failed:`);
-        console.log(
-          `  API value: "${apiValueToCompare}" (type: ${typeof apiValueToCompare}, length: ${
-            apiValueToCompare?.length
-          })`
-        );
-        console.log(
-          `  DB value: "${dbValueToCompare}" (type: ${typeof dbValueToCompare}, length: ${
-            dbValueToCompare?.length
-          })`
-        );
-        console.log(`  API original: ${JSON.stringify(apiValue)}`);
-        console.log(`  DB original: ${JSON.stringify(dbValue)}`);
-        errors.push(
-          `${resourceName} ${apiRecord[idField]} field mismatch: ${field} API="${apiValueToCompare}" DB="${dbValueToCompare}"`
-        );
-      }
+    if (apiVal !== dbVal) {
+      logMismatch(field, apiVal, dbVal);
+      errors.push(
+        `${resourceName} ${apiRecord[idField]} field mismatch: ${field} API="${apiVal}" DB="${dbVal}"`
+      );
     }
   }
 }
@@ -402,25 +447,129 @@ export async function verifyAll(resourceName, idField, dbName, tableName, apiRec
     .filter(dbRecord => !apiRecords.find(api => api[idField] === dbRecord[idField]))
     .forEach(r => errors.push(`${resourceName} ${r[idField]} missing from API`));
 
-  if (errors.length) throw new Error(`Verification failed: ${errors.join("; ")}`);
+  if (errors.length) {
+    expect(errors).toEqual([], `Verification failed: ${errors.join("; ")}`);
+  }
   console.log(`✅ All ${resourceName} match database`);
 }
-
-// Verify single record
-export async function verifySingle(resourceName, idField, dbName, tableName, apiRecord, resourceId) {
-  const results = await serviceFactory.queryTable(dbName, tableName, { [idField]: resourceId });
-  if (!results.length) throw new Error(`${resourceName} ${resourceId} not found in DB`);
-
-  const dbRecord = results[0];
-  const errors = [];
-  compareRecord(apiRecord, dbRecord, idField, errors, resourceName);
-
-  // Validate created_at vs updated_at
-  if (new Date(dbRecord.created_at).getTime() !== new Date(dbRecord.updated_at).getTime()) {
-    errors.push(`updated_at should match created_at`);
+async function normalizeParams(params = {}) {
+  const normalized = {};
+  for (const [k, v] of Object.entries(params)) {
+    if (typeof v === "string") {
+      if (v.toLowerCase() === "true") normalized[k] = true;
+      else if (v.toLowerCase() === "false") normalized[k] = false;
+      else if (!Number.isNaN(Number(v)) && v.trim() !== "") normalized[k] = Number(v);
+      else normalized[k] = v;
+    } else normalized[k] = v;
   }
-
-  if (errors.length) throw new Error(`Single record verification failed: ${errors.join("; ")}`);
-  console.log(`✅ ${resourceName} ${resourceId} verified successfully`);
+  return normalized;
 }
 
+export async function verifyRecords({
+  resourceName,
+  idField,
+  dbName,
+  tableName,
+  apiRecords,
+  queryParams,
+  checkCount = false,
+}) {
+  if (!Array.isArray(apiRecords))
+    throw new Error(`Response is not an array of ${resourceName}`);
+
+  const filters = queryParams ? await normalizeParams(queryParams) : {};
+  const dbResults = await serviceFactory.queryTable(dbName, tableName, filters);
+
+  if (checkCount && dbResults.length !== apiRecords.length) {
+    const apiIds = apiRecords.map((r) => r[idField]).filter(Boolean);
+    const dbIds = dbResults.map((r) => r[idField]).filter(Boolean);
+    throw new Error(
+      `${resourceName} count mismatch for query ${JSON.stringify(filters)}. ` +
+        `API=${apiRecords.length}, DB=${dbResults.length}.\n` +
+        `Missing from API: ${dbIds.filter((id) => !apiIds.includes(id)).slice(0, 50).join(", ")}\n` +
+        `Missing from DB: ${apiIds.filter((id) => !dbIds.includes(id)).slice(0, 50).join(", ")}`
+    );
+  }
+
+  const errors = [];
+  for (const apiRecord of apiRecords) {
+    const dbRecord = dbResults.find((r) => r[idField] === apiRecord[idField]);
+    if (!dbRecord) {
+      errors.push(`${resourceName} ${apiRecord[idField]} not found in DB`);
+      continue;
+    }
+    compareRecord(apiRecord, dbRecord, idField, errors, resourceName);
+  }
+
+  if (errors.length) {
+    expect(errors).toEqual([], `Verification failed: ${errors.join("; ")}`);
+  }
+  console.log(
+    `✅ ${checkCount ? "Filtered" : "Subset of"} ${resourceName} match DB` +
+      (queryParams ? ` using ${JSON.stringify(filters)}` : "")
+  );
+}
+
+export const verifyAllByQuery = (resourceName, idField, dbName, tableName, apiRecords, queryParams) =>
+  verifyRecords({ resourceName, idField, dbName, tableName, apiRecords, queryParams, checkCount: true });
+
+
+// Helper functions to reduce duplication
+export const getResourceIdAndEndpoint = (resourceType, customId, context) => {
+  const config = getResourceConfig(resourceType);
+  let resourceId,
+    endpoint,
+    method = "patch";
+
+  if (resourceType === "FAQ Likes") {
+    resourceId = customId || getCreatedResourceId(context, "FAQ");
+    endpoint = `${config.endpoint}/${resourceId}`;
+    method = "post";
+    context.current_resource_id = resourceId;
+  } else if (resourceType === "Resource Likes") {
+    if (
+      context.created_resources?.RESOURCES &&
+      Array.isArray(context.created_resources.RESOURCES)
+    ) {
+      resourceId =
+        customId || context.created_resources.RESOURCES[0]?.resource_id;
+    }
+    if (!resourceId) {
+      throw new Error(
+        "No resource ID found. Please create an FAQ with resources first."
+      );
+    }
+    endpoint = `${config.endpoint}/${resourceId}`;
+    method = "post";
+    context.current_resource_id = resourceId;
+  } else {
+    resourceId = customId || getCreatedResourceId(context, resourceType);
+    endpoint = `${config.endpoint}/${resourceId}`;
+  }
+
+  return { resourceId, endpoint, method };
+};
+
+export const getUpdateKey = (resourceType) => {
+  if (resourceType === "FAQ Likes") return "faq-likes-update";
+  if (resourceType === "Resource Likes") return "resource-likes-update";
+  return `${getResourceConfig(resourceType).baseKey}-update`;
+};
+
+export const storeUpdateData = (context, resourceType, responseData) => {
+  if (!context.afterUpdateData) context.afterUpdateData = {};
+  context.afterUpdateData[resourceType] = {
+    ...responseData.data,
+    retrieved_at: new Date().toISOString(),
+  };
+};
+
+export const storeBeforeUpdateData = (context, resourceType, responseData) => {
+  if (!context.beforeUpdateData) context.beforeUpdateData = {};
+  if (context.response?.status === 200 || context.response?.status === 201) {
+    context.beforeUpdateData[resourceType] = {
+      ...responseData.data,
+      retrieved_at: new Date().toISOString(),
+    };
+  }
+};

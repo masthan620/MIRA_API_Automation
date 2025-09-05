@@ -107,14 +107,20 @@ Then(/^verify the mapping of students to device$/, async function () {
 });
 
 Given(
-  /^as (a|an) (teacher|admin), I get all the "([^"]*)" requests for the school "([^"]*)"$/,
-  async function (article, user_type, request_type, school_code) {
+  /^As (a|an) (teacher|admin), I get all the "([^"]*)" requests for the school "([^"]*)"$/,
+  async function (
+    article,
+    user_type,
+    request_type,
+    organisation_code_variable
+  ) {
     let limit = 1000;
     let page = 1;
 
-    let endpoint = buildEndpoint(process.env.INCOMING_REQUEST_LIST_ENDPOINT, {
-      school_code,
-      request_type,
+    let organisation_code = getOrganisationCode(organisation_code_variable);
+
+    let endpoint = buildEndpoint(process.env.PASSWORD_RESET_LIST_ENDPOINT, {
+      organisation_code,
     });
     endpoint = addQueryParams(endpoint, { limit, page });
     await makeTimedRequest(this, "get", endpoint);

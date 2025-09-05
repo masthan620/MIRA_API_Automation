@@ -34,8 +34,11 @@
     "country_code": "+91"
   },
   "passwordResetToAdmin/Teacher": {
-    "request_to": "admin"
-  },
+    "request_to": "admin",
+    "requested_by": "student",
+    "user_id": "102",
+    "ip_address": "192.168.1.1"
+},
   "password-reset-status": {
     "status": "approved"
   },
@@ -76,11 +79,18 @@
   "issue": {
     "category": "user password reset",
     "description": "How to login",
-    "file": ["cmMtdXBsb2FkLTE3NDEzMTk1Njk0MTMtMg==/logan-weaver-lgnwvr-kKfM1PJ8g5k-unsplash (1).jpg","cmMtdXBsb2FkLTE3NDEzMTk1Njk0MTMtMw==/logan-weaver-lgnwvr-kKfM1PJ8g5k-unsplash.jpg"]
+    "file": [
+      "cmMtdXBsb2FkLTE3NDEzMTk1Njk0MTMtMg==/logan-weaver-lgnwvr-kKfM1PJ8g5k-unsplash (1).jpg",
+      "cmMtdXBsb2FkLTE3NDEzMTk1Njk0MTMtMw==/logan-weaver-lgnwvr-kKfM1PJ8g5k-unsplash.jpg"
+    ]
   },
   "resource": {
-    "is_like": "false",
-    "source": "faq"
+    "is_liked": "false",
+    "source": "faqs"
+  },
+  "resource-update": {
+    "is_liked": "false",
+    "source": "faqs"
   },
   "marketing-carousel": {
     "image_url": "https://test",
@@ -97,7 +107,7 @@
     "is_active": true
   },
   "sub-category": {
-    "category_id": "CAT001",
+    "category_id": "{category_id}",
     "sub_category_name": "Started",
     "description": "Getting started issues"
   },
@@ -146,6 +156,17 @@
     "quote_date": "2025-07-01",
     "show_days": [10, 7],
     "is_active": false
+  },
+  "faq-likes-update": {
+    "is_liked": true,
+    "source": "faqs"
+  },
+  "resource-likes-update": {
+    "is_liked": true,
+    "source": "faqs"
+  },
+  "replaceDevice": {
+    "new_device_id": "W3E5F7"
   }
 }
 

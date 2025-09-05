@@ -1,5 +1,6 @@
 import axios from "axios";
 import dotenv from "dotenv";
+import AllureHelper from "./allure-helper.js";
 
 dotenv.config();
 
@@ -48,9 +49,16 @@ export async function makeTimedRequest(
       headers["Authorization"] = context.authToken;
     }
   }
+  
   console.log(
     `${green} Making ${method.toUpperCase()} request to: ${endpoint}`
   );
+  
+  if (requestBody) {
+    console.log(
+      `${yellow} Request Body: ${JSON.stringify(requestBody, null, 2)}`
+    );
+  }
 
   const startTime = Date.now();
 
@@ -71,7 +79,12 @@ export async function makeTimedRequest(
         response = await ApiClient.put(endpoint, requestBody, headers);
         break;
       case "delete":
-        response = await ApiClient.delete(endpoint, headers);
+        // Handle DELETE with optional request body
+        if (requestBody) {
+          response = await ApiClient.delete(endpoint, { headers, data: requestBody });
+        } else {
+          response = await ApiClient.delete(endpoint, headers);
+        }
         break;
       default:
         throw new Error(`HTTP method ${method} is not implemented`);
@@ -99,6 +112,38 @@ export async function makeTimedRequest(
   const endTime = Date.now();
   context.responseTime = endTime - startTime;
   console.log(`${green} Request took ${context.responseTime}ms`);
+
+  // 🎯 Enhanced Allure Reporting with detailed request info
+  try {
+    // Prepare detailed request information for Allure
+    const requestDetails = {
+      method: method.toUpperCase(),
+      endpoint: endpoint,
+      requestUrl: `${process.env.BASE_URL}${endpoint}`,
+      headers: { ...headers },
+      body: requestBody,
+      host: process.env.BASE_URL ? new URL(process.env.BASE_URL).host : 'unknown',
+      timestamp: new Date().toISOString()
+    };
+
+    AllureHelper.attachApiCall(
+      context, 
+      `${method.toUpperCase()} ${endpoint}`, 
+      requestDetails
+    );
+    
+    // Add performance tracking if response time is significant
+    if (context.responseTime > 1000) {
+      AllureHelper.attachPerformance(context, `${method.toUpperCase()} ${endpoint}`);
+    }
+    
+    // Attach error details if request failed
+    if (context.error) {
+      AllureHelper.attachError(context, context.error, `${method.toUpperCase()} ${endpoint} Failed`);
+    }
+  } catch (allureError) {
+    console.warn('⚠️ Allure reporting failed:', allureError.message);
+  }
 
   return context.response;
 }
@@ -205,10 +250,38 @@ class ApiClient {
     }
   }
 
-  static async delete(endpoint, headers = {}) {
+  static async delete(endpoint, options = {}) {
     const start = Date.now();
     try {
-      const response = await instance.delete(endpoint, { headers });
+      const config = {};
+      
+      // Handle different parameter formats
+      if (options.headers) {
+        config.headers = options.headers;
+      } else if (typeof options === 'object' && !options.data && !options.headers) {
+        // Old format where options was just headers
+        config.headers = options;
+      }
+      
+      // Handle request body for DELETE (needed for unmap students)
+      if (options.data) {
+        config.data = options.data;
+        // Ensure Content-Type is set for requests with body
+        if (!config.headers) {
+          config.headers = {};
+        }
+        if (!config.headers['Content-Type']) {
+          config.headers['Content-Type'] = 'application/json';
+        }
+      }
+      
+      console.log(`${yellow}DELETE Config:${reset}`, JSON.stringify({
+        endpoint,
+        headers: config.headers,
+        data: config.data
+      }, null, 2));
+      
+      const response = await instance.delete(endpoint, config);
       const duration = Date.now() - start;
       console.log(`${green}DELETE ${endpoint} took ${duration}ms${reset}`);
       console.log(
@@ -220,16 +293,33 @@ class ApiClient {
       console.error(
         `${red}DELETE ${endpoint} failed after ${duration}ms:${reset} ${error.message}`
       );
+      
+      if (options.data) {
+        console.error(
+          `${red}Request Body:${reset} ${JSON.stringify(options.data, null, 2)}`
+        );
+      }
+      
       if (error.response) {
         console.error(
           `${red}Status ${error.response.status}:${reset} ${JSON.stringify(
             error.response.data
           )}`
         );
+        return error.response;
       }
-      throw error;
+      
+      return {
+        status: 600,
+        data: {
+          status: false,
+          message: error.message || "Unknown error occurred",
+          code: "NETWORK_ERROR",
+        },
+      };
     }
   }
+
   static async patch(endpoint, data = {}, options = {}) {
     const start = Date.now();
     try {

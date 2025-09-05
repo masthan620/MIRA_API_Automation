@@ -1,0 +1,324 @@
+{
+  "organisation_codes": {
+    "organisation_code_1": "801234",
+    "organisation_code_2": "7718"
+  },
+  "data": {
+    "admin_1": {
+      "username": "ananya.verma432",
+      "user_id": "9000070432",
+      "first_name": "Ananya",
+      "last_name": "Verma",
+      "user_type": "school_admin"
+    },
+    "admin_2": {
+      "username": "vikram.verma433",
+      "user_id": "9000070433",
+      "first_name": "Vikram",
+      "last_name": "Verma",
+      "user_type": "school_admin"
+    },
+    "admin_3": {
+      "username": "kavya.gupta435",
+      "user_id": "9000070435",
+      "first_name": "Kavya",
+      "last_name": "Gupta",
+      "user_type": "school_admin"
+    },
+    "admin_4": {
+      "username": "ajay.iyer434",
+      "user_id": "9000070434",
+      "first_name": "Ajay",
+      "last_name": "Iyer",
+      "user_type": "school_admin"
+    },
+    "student_1": {
+      "username": "ananya.gupta545",
+      "user_id": "9000070545",
+      "first_name": "Ananya",
+      "last_name": "Gupta",
+      "user_type": "student"
+    },
+    "student_2": {
+      "username": "ananya.sharma447",
+      "user_id": "9000070447",
+      "first_name": "Ananya",
+      "last_name": "Sharma",
+      "user_type": "student"
+    },
+    "student_3": {
+      "username": "pooja.sharma448",
+      "user_id": "9000070448",
+      "first_name": "Pooja",
+      "last_name": "Sharma",
+      "user_type": "student"
+    },
+    "student_4": {
+      "username": "lakshmi.reddy449",
+      "user_id": "9000070449",
+      "first_name": "Lakshmi",
+      "last_name": "Reddy",
+      "user_type": "student"
+    },
+    "student_5": {
+      "username": "priya.reddy450",
+      "user_id": "9000070450",
+      "first_name": "Priya",
+      "last_name": "Reddy",
+      "user_type": "student"
+    },
+    "student_6": {
+      "username": "sneha.gupta451",
+      "user_id": "9000070451",
+      "first_name": "Sneha",
+      "last_name": "Gupta",
+      "user_type": "student"
+    },
+    "student_7": {
+      "username": "suresh.verma452",
+      "user_id": "9000070452",
+      "first_name": "Suresh",
+      "last_name": "Verma",
+      "user_type": "student"
+    },
+    "student_8": {
+      "username": "kavya.verma453",
+      "user_id": "9000070453",
+      "first_name": "Kavya",
+      "last_name": "Verma",
+      "user_type": "student"
+    },
+    "student_9": {
+      "username": "meera.naidu454",
+      "user_id": "9000070454",
+      "first_name": "Meera",
+      "last_name": "Naidu",
+      "user_type": "student"
+    },
+    "student_10": {
+      "username": "sita.kumar455",
+      "user_id": "9000070455",
+      "first_name": "Sita",
+      "last_name": "Kumar",
+      "user_type": "student"
+    },
+    "student_11": {
+      "username": "sunita.singh456",
+      "user_id": "9000070456",
+      "first_name": "Sunita",
+      "last_name": "Singh",
+      "user_type": "student"
+    },
+    "student_12": {
+      "username": "kavya.singh457",
+      "user_id": "9000070457",
+      "first_name": "Kavya",
+      "last_name": "Singh",
+      "user_type": "student"
+    },
+    "student_13": {
+      "username": "geeta.patel458",
+      "user_id": "9000070458",
+      "first_name": "Geeta",
+      "last_name": "Patel",
+      "user_type": "student"
+    },
+    "student_14": {
+      "username": "manoj.singh459",
+      "user_id": "9000070459",
+      "first_name": "Manoj",
+      "last_name": "Singh",
+      "user_type": "student"
+    },
+    "student_15": {
+      "username": "ajay.mishra460",
+      "user_id": "9000070460",
+      "first_name": "Ajay",
+      "last_name": "Mishra",
+      "user_type": "student"
+    },
+    "student_16": {
+      "username": "pooja.singh461",
+      "user_id": "9000070461",
+      "first_name": "Pooja",
+      "last_name": "Singh",
+      "user_type": "student"
+    },
+    "student_17": {
+      "username": "kiran.mishra462",
+      "user_id": "9000070462",
+      "first_name": "Kiran",
+      "last_name": "Mishra",
+      "user_type": "student"
+    },
+    "student_18": {
+      "username": "deepak.patel463",
+      "user_id": "9000070463",
+      "first_name": "Deepak",
+      "last_name": "Patel",
+      "user_type": "student"
+    },
+    "student_19": {
+      "username": "sneha.bose464",
+      "user_id": "9000070464",
+      "first_name": "Sneha",
+      "last_name": "Bose",
+      "user_type": "student"
+    },
+    "student_20": {
+      "username": "sunita.gupta465",
+      "user_id": "9000070465",
+      "first_name": "Sunita",
+      "last_name": "Gupta",
+      "user_type": "student"
+    },
+    "student_21": {
+      "username": "sunita.mishra466",
+      "user_id": "9000070466",
+      "first_name": "Sunita",
+      "last_name": "Mishra",
+      "user_type": "student"
+    },
+    "student_22": {
+      "username": "sita.chopra467",
+      "user_id": "9000070467",
+      "first_name": "Sita",
+      "last_name": "Chopra",
+      "user_type": "student"
+    },
+    "student_23": {
+      "username": "pooja.reddy468",
+      "user_id": "9000070468",
+      "first_name": "Pooja",
+      "last_name": "Reddy",
+      "user_type": "student"
+    },
+    "student_24": {
+      "username": "vikram.mehta469",
+      "user_id": "9000070469",
+      "first_name": "Vikram",
+      "last_name": "Mehta",
+      "user_type": "student"
+    },
+    "student_25": {
+      "username": "deepak.iyer470",
+      "user_id": "9000070470",
+      "first_name": "Deepak",
+      "last_name": "Iyer",
+      "user_type": "student"
+    },
+    "student_26": {
+      "username": "sunita.singh471",
+      "user_id": "9000070471",
+      "first_name": "Sunita",
+      "last_name": "Singh",
+      "user_type": "student"
+    },
+    "student_27": {
+      "username": "suresh.chopra472",
+      "user_id": "9000070472",
+      "first_name": "Suresh",
+      "last_name": "Chopra",
+      "user_type": "student"
+    },
+    "student_28": {
+      "username": "kavya.reddy473",
+      "user_id": "9000070473",
+      "first_name": "Kavya",
+      "last_name": "Reddy",
+      "user_type": "student"
+    },
+    "student_29": {
+      "username": "kavya.kumar474",
+      "user_id": "9000070474",
+      "first_name": "Kavya",
+      "last_name": "Kumar",
+      "user_type": "student"
+    },
+    "student_30": {
+      "username": "ravi.gupta475",
+      "user_id": "9000070475",
+      "first_name": "Ravi",
+      "last_name": "Gupta",
+      "user_type": "student"
+    },
+    "teacher_1": {
+      "username": "manoj.mehta436",
+      "user_id": "9000070436",
+      "first_name": "Manoj",
+      "last_name": "Mehta",
+      "user_type": "teacher"
+    },
+    "teacher_2": {
+      "username": "pooja.kumar437",
+      "user_id": "9000070437",
+      "first_name": "Pooja",
+      "last_name": "Kumar",
+      "user_type": "teacher"
+    },
+    "teacher_3": {
+      "username": "manoj.das438",
+      "user_id": "9000070438",
+      "first_name": "Manoj",
+      "last_name": "Das",
+      "user_type": "teacher"
+    },
+    "teacher_4": {
+      "username": "ajay.mehta439",
+      "user_id": "9000070439",
+      "first_name": "Ajay",
+      "last_name": "Mehta",
+      "user_type": "teacher"
+    },
+    "teacher_5": {
+      "username": "manoj.singh440",
+      "user_id": "9000070440",
+      "first_name": "Manoj",
+      "last_name": "Singh",
+      "user_type": "teacher"
+    },
+    "teacher_6": {
+      "username": "rahul.mehta441",
+      "user_id": "9000070441",
+      "first_name": "Rahul",
+      "last_name": "Mehta",
+      "user_type": "teacher"
+    },
+    "teacher_7": {
+      "username": "sita.sharma442",
+      "user_id": "9000070442",
+      "first_name": "Sita",
+      "last_name": "Sharma",
+      "user_type": "teacher"
+    },
+    "teacher_8": {
+      "username": "manoj.iyer443",
+      "user_id": "9000070443",
+      "first_name": "Manoj",
+      "last_name": "Iyer",
+      "user_type": "teacher"
+    },
+    "teacher_9": {
+      "username": "ajay.naidu444",
+      "user_id": "9000070444",
+      "first_name": "Ajay",
+      "last_name": "Naidu",
+      "user_type": "teacher"
+    },
+    "teacher_10": {
+      "username": "kavya.patel445",
+      "user_id": "9000070445",
+      "first_name": "Kavya",
+      "last_name": "Patel",
+      "user_type": "teacher"
+    },
+    "invalid_1": {
+      "username": "invaliduser123",
+      "user_id": "9999999999",
+      "first_name": "Invalid",
+      "last_name": "User",
+      "user_type": "invalid"
+    }
+  }
+}
+

@@ -5,11 +5,33 @@ import fs from 'fs';
 import path from 'path';
 import serviceFactory from  '../../services/service-factory';
 import { getResponseData, verifyField } from '../helpers/responseValidator.js';
-
+;
+;
 import { generateUniqueId1 } from "../../utils/generateRandomData.js";
+import AllureHelper from '../../utils/allure-helper.js';
 
-import { red, green, yellow } from "../../utils/apiClient.js";
+import { green, yellow ,makeTimedRequest } from "../../utils/apiClient.js";
 
+// 🎯 Utility function to capture console logs during step execution
+const withConsoleCapture = async (stepName, stepFunction) => {
+  const consoleLogs = [];
+  const originalLog = console.log;
+  console.log = (...args) => {
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+    consoleLogs.push(message);
+    originalLog.apply(console, args);
+  };
+
+  try {
+    await stepFunction();
+  } finally {
+    // Restore console.log and attach captured logs
+    console.log = originalLog;
+    if (consoleLogs.length > 0) {
+      AllureHelper.attachConsoleLogs(stepName, consoleLogs);
+    }
+  }
+};
 // Function to load request body from JSON
 const loadRequestBody = (key) => {
     const dataPath = path.resolve('./test-data/apiRequestBodies.json');
@@ -49,7 +71,19 @@ const findKeyDeep = (obj, keyToFind) => {
   return undefined;
 };
 Given(/^I send a GET request to "([^"]*)"$/, async function(url)  {
-    this.response = await apiClient.get(url); 
+  await withConsoleCapture(`GET ${url}`, async () => {
+    this.endpoint = url; // Store endpoint for Allure reporting
+    await makeTimedRequest(this, "get", url);
+    
+    // 🎯 Add step metadata
+    AllureHelper.addStepWithMetadata(`GET Request to ${url}`, {
+      endpoint: url,
+      method: 'GET',
+      hasAuthToken: !!this.authToken,
+      baseUrl: process.env.BASE_URL
+    });
+  });
+  await makeTimedRequest(this, "get", url);
 });
 Given(/^I send a POST request to "([^"]*)" with body:$/, async function(url, body)  {
     let requestBody = loadRequestBody("createDevice");
@@ -60,18 +94,53 @@ Then(/^the response status code should be (\d+)$/, async function(expectedStatus
     expect(this.response.status).toEqual(parseInt(expectedStatusCode));
 });
 Given(/^I send a POST request to "([^"]*)" using "([^"]*)" request body$/, async function(endpoint, bodyKey) {
-    let requestBody = loadRequestBody(bodyKey);
-    if (!requestBody) {
-      throw new Error("Loaded requestBody is undefined");
-    }
-    // Capture start time
-    const startTime = Date.now();
-    this.response = await apiClient.post(endpoint, requestBody);
-    // Capture end time and calculate duration
-    const endTime = Date.now();
-    this.responseTime = endTime - startTime;
+    // 📝 Capture console logs for this step
+    const consoleLogs = [];
+    const originalLog = console.log;
+    console.log = (...args) => {
+      const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+      consoleLogs.push(message);
+      originalLog.apply(console, args);
+    };
 
-    console.log(`${endpoint} took ${this.responseTime}ms`);
+    try {
+      let requestBody = loadRequestBody(bodyKey);
+      if (!requestBody) {
+        throw new Error("Loaded requestBody is undefined");
+      }
+      
+      this.endpoint = endpoint; // Store for Allure reporting
+      this.sentData = requestBody; // Store sent data for validation steps
+      
+      // Capture start time
+      const startTime = Date.now();
+      this.response = await apiClient.post(endpoint, requestBody);
+      // Capture end time and calculate duration
+      const endTime = Date.now();
+      this.responseTime = endTime - startTime;
+
+      console.log(`${endpoint} took ${this.responseTime}ms`);
+      
+      // 🎯 Enhanced Allure reporting
+      AllureHelper.addStepWithMetadata(`POST Request using ${bodyKey}`, {
+        endpoint: endpoint,
+        method: 'POST',
+        requestBodyKey: bodyKey,
+        hasAuthToken: !!this.authToken,
+        responseTime: this.responseTime,
+        baseUrl: process.env.BASE_URL
+      });
+
+    } catch (error) {
+      AllureHelper.attachError(this, error, `POST ${endpoint} using ${bodyKey}`);
+      throw error;
+    } finally {
+      // Restore console.log and attach captured logs
+      console.log = originalLog;
+      if (consoleLogs.length > 0) {
+        AllureHelper.attachConsoleLogs(`POST ${endpoint}`, consoleLogs);
+      }
+    }
   }
 );
 // POST with request body and dynamic overrides
@@ -201,6 +270,7 @@ Then(/^response message should contain "([^"]*)"$/, function (expectedText) {
   console.log(`✅ Message contains: "${expectedText}"`);
 });
 
+// Verify success array matches sent user count and content
 Then(/^verify success array matches sent users$/, function () {
     const responseData = this.response.body || this.response.data || this.response;
     const sentUserIds = this.mappedUserIds || this.sentData?.user_ids || [];
@@ -215,6 +285,7 @@ Then(/^verify success array matches sent users$/, function () {
     console.log(`Verified ${sentUserIds.length} users in success array`);
 });
 
+// Verify all success entries have same device_id
 Then(/^verify all success entries have correct device_id$/, function () {
     const responseData = this.response.body || this.response.data || this.response;
     const expectedDeviceId = this.deviceId;
@@ -225,119 +296,9 @@ Then(/^verify all success entries have correct device_id$/, function () {
     
     console.log(`All entries have device_id: ${expectedDeviceId}`);
 });
-
+// Verify failure array is empty
 Then(/^verify failure array is empty$/, function () {
     const responseData = this.response.body || this.response.data || this.response;
     expect(responseData.failure.length).toEqual(0);
     console.log('Failure array is empty');
-});
-
-// Add message contains validation for dynamic error messages
-Then(/^response message should contain "([^"]*)"$/, function (expectedText) {
-  const responseData = this.response.body || this.response.data || this.response;
-  expect(responseData.message).toContain(expectedText);
-  console.log(`Message contains: "${expectedText}"`);
-});
-
-
-// Store device_id from registration response
-Then(/^store device_id from registration$/, function () {
-    this.storedRegistrationDeviceId = this.deviceId || this.regResponse?.data?.device_id;
-    console.log(`Stored registration device_id: ${this.storedRegistrationDeviceId}`);
-});
-
-// Store device mapping response fields
-Then(/^store device mapping response fields$/, function () {
-    const responseData = this.response.body || this.response.data || this.response;
-    this.storedMappingColor = responseData.device_color;
-    this.storedMappingDeviceNo = responseData.device_no;
-    
-    console.log(`Stored mapping fields: color=${this.storedMappingColor}, device_no=${this.storedMappingDeviceNo}`);
-});
-
-// Verify device_color matches stored mapping color (works with arrays or objects)
-Then(/^verify device_color matches stored mapping color$/, function () {
-    const responseData = this.response.body || this.response.data || this.response;
-    const expectedColor = this.storedMappingColor;
-    
-    let actualColor;
-    if (Array.isArray(responseData)) {
-        actualColor = responseData[0]?.device_color;
-    } else {
-        actualColor = responseData.device_color;
-    }
-    
-    expect(actualColor).toEqual(expectedColor);
-    console.log(`Device color matches across responses: ${expectedColor}`);
-});
-
-// Verify device_no matches stored mapping number (works with arrays or objects)  
-Then(/^verify device_no matches stored mapping number$/, function () {
-    const responseData = this.response.body || this.response.data || this.response;
-    const expectedDeviceNo = this.storedMappingDeviceNo;
-    
-    let actualDeviceNo;
-    if (Array.isArray(responseData)) {
-        actualDeviceNo = responseData[0]?.device_no;
-    } else {
-        actualDeviceNo = responseData.device_no;
-    }
-    
-    expect(actualDeviceNo).toEqual(expectedDeviceNo);
-    console.log(`Device number matches across responses: ${expectedDeviceNo}`);
-});
-
-// Verify device_id matches stored registration device_id
-Then(/^verify device_id matches stored registration device_id$/, function () {
-    const responseData = this.response.body || this.response.data || this.response;
-    const expectedDeviceId = this.storedRegistrationDeviceId;
-    
-    expect(responseData.device_id).toEqual(expectedDeviceId);
-    console.log(`Device_id matches registration: ${expectedDeviceId}`);
-});
-
-// Verify organisation_code matches expected organisation (works with arrays)
-Then(/^verify organisation_code matches expected organisation$/, function () {
-    const responseData = this.response.body || this.response.data || this.response;
-    const expectedOrgCode = testData["organisation_code"];
-    
-    let actualOrgCode;
-    if (Array.isArray(responseData)) {
-        actualOrgCode = responseData[0]?.organisation_code;
-    } else {
-        actualOrgCode = responseData.organisation_code;
-    }
-    
-    expect(actualOrgCode).toEqual(expectedOrgCode);
-    console.log(`Organisation code matches: ${expectedOrgCode}`);
-});
-
-// Verify all success entries have stored device_id
-Then(/^verify all success entries have stored device_id$/, function () {
-    const responseData = this.response.body || this.response.data || this.response;
-    const expectedDeviceId = this.storedRegistrationDeviceId;
-    
-    expect(responseData.success).toBeDefined();
-    expect(Array.isArray(responseData.success)).toBe(true);
-    
-    responseData.success.forEach((item, index) => {
-        expect(item.device_id).toEqual(expectedDeviceId);
-        console.log(`Success entry ${index + 1}: device_id matches registration (${expectedDeviceId})`);
-    });
-});
-
-// Verify exact user count
-Then(/^verify user count is "([^"]*)"$/, function (expectedCount) {
-    const responseData = this.response.body || this.response.data || this.response;
-    
-    expect(responseData.user_count).toEqual(parseInt(expectedCount));
-    console.log(`User count verified: ${responseData.user_count} (expected: ${expectedCount})`);
-});
-
-// Verify device is active in organisation
-Then(/^verify device is active in organisation$/, function () {
-    const responseData = this.response.body || this.response.data || this.response;
-    
-    expect(responseData.active).toBe(true);
-    console.log(`Device is active: ${responseData.active}`);
 });

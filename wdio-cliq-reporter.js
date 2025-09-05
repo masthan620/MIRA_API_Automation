@@ -23,82 +23,130 @@ class CliqReporter {
      * Formats test results for Cliq message
      */
     formatResults(results) {
-        if (!results || !results.stats || !results.specs) {
+        if (!results || !results.stats) {
             console.warn('Invalid results object structure. Using default values.');
             return [{
                 "Sl No": 1,
                 "Spec File Name": "Unknown",
-                "Total TC": 0,
-                "Total Passed TC": 0,
-                "Total Failed TC": 0,
-                "Total Skipped TC": 0
+                "🔢 Total TC": 0,
+                "✅ Passed TC": 0,
+                "❌ Failed TC": 0,
+                "⏭️ Skipped TC": 0
             }];
         }
 
-        const { stats, specs } = results;
+        const { stats } = results;
+        const specs = results.specs || results.suites || [];
         const format = [];
 
         try {
+            // Debug logging to understand the structure
+            console.log('Results structure debug:', {
+                hasSpecs: !!results.specs,
+                hasSuites: !!results.suites,
+                specsLength: specs.length,
+                statsKeys: Object.keys(stats),
+                firstSpec: specs[0] ? Object.keys(specs[0]) : 'No specs'
+            });
+
             specs.forEach((spec, index) => {
-                const specFile = spec.file || 'Unknown';
+                const specFile = spec.file || spec.title || spec.name || 'Unknown';
                 const specName = specFile.includes('/') || specFile.includes('\\') 
                     ? path.basename(specFile, path.extname(specFile))
                     : specFile;
 
-                let totalTests = spec.total !== undefined ? spec.total : (spec.tests || []).length;
-                let passedTests = spec.passes !== undefined ? spec.passes : (spec.tests || []).filter(t => t && t.state === 'passed').length;
-                let failedTests = spec.failures !== undefined ? spec.failures : (spec.tests || []).filter(t => t && t.state === 'failed').length;
-                let skippedTests = spec.skipped !== undefined ? spec.skipped : (spec.tests || []).filter(t => t && (t.state === 'skipped' || t.state === 'pending')).length;
+                // Handle the data structure from buildResultsFromAllure()
+                let totalTests = spec.total || 0;
+                let passedTests = spec.passes || 0;
+                let failedTests = spec.failures || 0;
+                let skippedTests = spec.skipped || spec.pending || 0;
 
-                totalTests = isNaN(totalTests) ? 0 : totalTests;
-                passedTests = isNaN(passedTests) ? 0 : passedTests;
-                failedTests = isNaN(failedTests) ? 0 : failedTests;
-                skippedTests = isNaN(skippedTests) ? 0 : skippedTests;
+                // If direct properties are not available, try alternative approaches
+                if (totalTests === 0 && spec.tests && Array.isArray(spec.tests)) {
+                    totalTests = spec.tests.length;
+                    passedTests = spec.tests.filter(t => t && (t.state === 'passed' || t.status === 'passed')).length;
+                    failedTests = spec.tests.filter(t => t && (t.state === 'failed' || t.status === 'failed')).length;
+                    skippedTests = spec.tests.filter(t => t && (t.state === 'skipped' || t.state === 'pending' || t.status === 'skipped')).length;
+                }
+
+                // Fallback: try other property variations
+                if (totalTests === 0) {
+                    totalTests = spec.tests?.length || spec.suites?.length || 
+                               (passedTests + failedTests + skippedTests);
+                    passedTests = passedTests || spec.passed || 0;
+                    failedTests = failedTests || spec.failed || spec.errors || 0;
+                    skippedTests = skippedTests || spec.skip || 0;
+                }
+
+                // Ensure we have valid numbers
+                totalTests = Math.max(0, parseInt(totalTests) || 0);
+                passedTests = Math.max(0, parseInt(passedTests) || 0);
+                failedTests = Math.max(0, parseInt(failedTests) || 0);
+                skippedTests = Math.max(0, parseInt(skippedTests) || 0);
+
+                // If totalTests is still 0, calculate from other counts
+                if (totalTests === 0) {
+                    totalTests = passedTests + failedTests + skippedTests;
+                }
+
+                console.log(`Spec ${index + 1} (${specName}):`, {
+                    original: spec,
+                    calculated: {
+                        total: totalTests,
+                        passed: passedTests,
+                        failed: failedTests,
+                        skipped: skippedTests
+                    }
+                });
 
                 format.push({
                     "Sl No": index + 1,
                     "Spec File Name": specName,
-                    "Total TC": totalTests,
-                    "Total Passed TC": passedTests, 
-                    "Total Failed TC": failedTests,
-                    "Total Skipped TC": skippedTests
+                    "🔢 Total TC": totalTests,
+                    "✅ Passed TC": passedTests, 
+                    "❌ Failed TC": failedTests,
+                    "⏭️ Skipped TC": skippedTests
                 });
             });
 
+            // Calculate totals from specs or use stats
             let totalSpecTests = 0, totalSpecPassed = 0, totalSpecFailed = 0, totalSpecSkipped = 0;
             format.forEach(row => {
                 if (row["Sl No"] !== "--") {
-                    totalSpecTests += row["Total TC"];
-                    totalSpecPassed += row["Total Passed TC"];
-                    totalSpecFailed += row["Total Failed TC"];
-                    totalSpecSkipped += row["Total Skipped TC"];
+                    totalSpecTests += row["🔢 Total TC"] || 0;
+                    totalSpecPassed += row["✅ Passed TC"] || 0;
+                    totalSpecFailed += row["❌ Failed TC"] || 0;
+                    totalSpecSkipped += row["⏭️ Skipped TC"] || 0;
                 }
             });
 
-            const totalTests = stats.tests || totalSpecTests;
-            const totalPassed = stats.passes || totalSpecPassed;
-            const totalFailed = stats.failures || totalSpecFailed;
-            const totalSkipped = (stats.skipped || stats.pending || totalSpecSkipped);
+            // Use stats if available, otherwise use calculated totals
+            const totalTests = stats.tests || stats.total || totalSpecTests;
+            const totalPassed = stats.passes || stats.passed || totalSpecPassed;
+            const totalFailed = stats.failures || stats.failed || stats.errors || totalSpecFailed;
+            const totalSkipped = stats.skipped || stats.pending || stats.skip || totalSpecSkipped;
 
             format.push({
                 "Sl No": "--",
                 "Spec File Name": "Total",
-                "Total TC": totalTests,
-                "Total Passed TC": totalPassed,
-                "Total Failed TC": totalFailed,
-                "Total Skipped TC": totalSkipped
+                "🔢 Total TC": totalTests,
+                "✅ Passed TC": totalPassed,
+                "❌ Failed TC": totalFailed,
+                "⏭️ Skipped TC": totalSkipped
             });
 
+            console.log('Final formatted results:', format);
             return format;
         } catch (error) {
             console.error('Error formatting results:', error);
+            console.error('Results object:', JSON.stringify(results, null, 2));
             return [{
                 "Sl No": 1,
                 "Spec File Name": "Error",
-                "Total TC": 0,
-                "Total Passed TC": 0,
-                "Total Failed TC": 0,
-                "Total Skipped TC": 0
+                "🔢 Total TC": 0,
+                "✅ Passed TC": 0,
+                "❌ Failed TC": 0,
+                "⏭️ Skipped TC": 0
             }];
         }
     }
@@ -109,49 +157,51 @@ class CliqReporter {
     createMessageBody(results) {
         const format = this.formatResults(results);
         const isFailed = results.stats && results.stats.failures > 0;
+        const totalTests = results.stats ? results.stats.tests : 0;
+        const totalFailures = results.stats ? results.stats.failures : 0;
+        const totalPassed = results.stats ? results.stats.passes : 0;
+        const totalSkipped = results.stats ? (results.stats.skipped || results.stats.pending || 0) : 0;
 
-        if (isFailed && results.stats.tests === (results.stats.failures + results.stats.skipped) && results.stats.failures === 1) {
-            return {
-                "text": `Pre-validation failure for ${this.options.testEnv}. Basic test scenario failed.`,
-                "bot": {
-                    "name": this.options.botName,
-                    "image": this.options.botImage
-                },
-                "card": {
-                    "theme": "prompt",
-                    "title": "Alert! -- Test Failure in " + this.options.testEnv
-                }
-            };
-        } else {
-            return {
-                "text": `Hi Team! Test execution results for ${this.options.testEnv}`,
-                "bot": {
-                    "name": this.options.botName,
-                    "image": this.options.botImage
-                },
-                "card": {
-                    "title": this.options.testEnv,
-                    "theme": "modern-inline"
-                },
-                "slides": [
-                    {
-                        "type": "table",
-                        "title": "Details of Execution",
-                        "data": {
-                            "headers": [
-                                "Sl No",
-                                "Spec File Name",
-                                "Total TC",
-                                "Total Passed TC",
-                                "Total Failed TC",
-                                "Total Skipped TC"
-                            ],
-                            "rows": format
-                        }
+        // Create a single, clean message
+        const statusIcon = isFailed ? '⚠️' : '✅';
+        const statusText = isFailed ? 'completed with issues' : 'completed successfully';
+        
+        const messageText = `${statusIcon} **Test execution ${statusText} for ${this.options.testEnv}**\n\n` +
+            `📊 **Summary:** ${totalPassed}/${totalTests} tests passed` +
+            (totalFailures > 0 ? ` • ${totalFailures} failed` : '') +
+            (totalSkipped > 0 ? ` • ${totalSkipped} skipped` : '');
+        
+        const cardTheme = isFailed ? 'prompt' : 'modern-inline';
+        const cardTitle = `Test Results - ${this.options.testEnv}`;
+
+        return {
+            "text": messageText,
+            "bot": {
+                "name": this.options.botName,
+                "image": this.options.botImage
+            },
+            "card": {
+                "title": cardTitle,
+                "theme": cardTheme
+            },
+            "slides": [
+                {
+                    "type": "table",
+                    "title": "📋 Detailed Execution Results",
+                    "data": {
+                        "headers": [
+                            "Sl No",
+                            "Spec File Name",
+                            "🔢 Total TC",
+                            "✅ Passed TC",
+                            "❌ Failed TC",
+                            "⏭️ Skipped TC"
+                        ],
+                        "rows": format
                     }
-                ]
-            };
-        }
+                }
+            ]
+        };
     }
 
     /**

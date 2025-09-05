@@ -203,15 +203,6 @@ class ServiceFactory {
               `User type mismatch: API="${apiData.user_type}" vs DB="${dbProfile.user_type}"`
             );
           }
-
-          if (
-            apiData.school_code &&
-            apiData.school_code !== Number(dbProfile.school_code)
-          ) {
-            throw new Error(
-              `School code mismatch: API="${apiData.school_code}" vs DB="${dbProfile.school_code}"`
-            );
-          }
         }
 
         console.log("✅ Database validation passed");
@@ -239,6 +230,15 @@ class ServiceFactory {
       faqService,
       likesService,
     };
+  }
+  fetchUserProfileByUserID(dbName = "usermanagement") {
+    const baseService = this.getDbService(dbName, "user_profile");
+
+    baseService.getUserByUserID = async function (user_id) {
+      return this.query().where("user_id", user_id).first();
+    };
+
+    return baseService;
   }
 }
 

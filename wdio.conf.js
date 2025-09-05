@@ -51,23 +51,111 @@ const runCommand = (command) => {
 // Function to check if the --sendCliq flag is passed
 const isCliqEnabled = () => process.argv.includes('--sendCliq');
 
+// Function to parse command line arguments and extract additional parameters
+const parseCommandLineArgs = () => {
+  const args = process.argv;
+  const cliqIndex = args.indexOf('--sendCliq');
+  
+  if (cliqIndex === -1) {
+    return { enabled: false };
+  }
+  
+  const result = { enabled: true };
+  
+  // Parse arguments after --sendCliq
+  for (let i = cliqIndex + 1; i < args.length; i++) {
+    const arg = args[i];
+    
+    // Skip if this is another --flag
+    if (arg.startsWith('--')) {
+      // Handle --key=value format for compatibility
+      if (arg.includes('=')) {
+        const [key, value] = arg.split('=', 2);
+        result[key.substring(2)] = value;
+      } else {
+        // Handle --key value format
+        const nextArg = args[i + 1];
+        if (nextArg && !nextArg.startsWith('--') && !nextArg.includes(':')) {
+          result[arg.substring(2)] = nextArg;
+          i++; // Skip next argument as it's been consumed
+        } else {
+          result[arg.substring(2)] = true; // Boolean flag
+        }
+      }
+    } else if (arg.includes(':')) {
+      // Handle key:value format (preferred)
+      const [key, value] = arg.split(':', 2);
+      if (key && value) {
+        result[key.trim()] = value.trim();
+      }
+    }
+  }
+  
+  return result;
+};
+
+// Function to display usage information for Cliq parameters
+const displayCliqUsage = () => {
+  console.log(`
+📖 Cliq Integration Usage:
+wdio run wdio.conf.js --sendCliq [key:value pairs]
+
+Available parameters (key:value format):
+  channel:<name>           Cliq channel name (default: automationreports)
+  env:<environment>        Test environment name (default: API Testing)
+  reportDir:<path>         Report directory path (default: ./allure-single-file-report)
+  reportFile:<name>        Report file name (default: index.html)
+  botName:<name>           Bot display name
+  botImage:<url>           Bot avatar image URL
+  clientId:<id>            Zoho client ID (overrides env var)
+  clientSecret:<secret>    Zoho client secret (overrides env var)
+  refreshToken:<token>     Zoho refresh token (overrides env var)
+
+Examples:
+  wdio run wdio.conf.js --sendCliq channel:myteam env:staging
+  wdio run wdio.conf.js --sendCliq channel:qa-reports env:"Production Tests"
+  wdio run wdio.conf.js --sendCliq env:dev botName:"Dev Test Bot"
+  wdio run wdio.conf.js --sendCliq channel:automation env:prod reportDir:./reports
+
+Legacy --key=value format is also supported for compatibility:
+  wdio run wdio.conf.js --sendCliq --channel=myteam --env=staging
+`);
+};
+
+// Parse command line arguments
+const cliqArgs = parseCommandLineArgs();
+
+// Display usage if help is requested
+if (cliqArgs.enabled && (cliqArgs.help || cliqArgs.h)) {
+  displayCliqUsage();
+  process.exit(0);
+}
+
 // Conditional loading of the Cliq service
 const services = [];
-if (isCliqEnabled()) {
+if (cliqArgs.enabled) {
   console.log('🔔 Cliq notification enabled');
-  services.push([
-    CliqService, {
-      channelName: 'automationreports',
-      reportDir: './allure-single-file-report',
-      reportFile: 'index.html',
-      testEnv: 'API Testing',
-      botName: 'Mira API Test Automation Summary',
-      botImage: `https://static-asset.inc42.com/logo/educational-initiatives.png` || 'https://webdriver.io/img/webdriverio.png',
-      clientId: process.env.ZOHO_CLIENT_ID || 'your-client-id',
-      clientSecret: process.env.ZOHO_CLIENT_SECRET || 'your-client-secret',
-      refreshToken: process.env.ZOHO_REFRESH_TOKEN || 'your-refresh-token'
-    }
-  ]);
+  console.log('📋 Cliq arguments:', cliqArgs);
+  
+  // Use command line arguments with fallbacks to environment variables and defaults
+  const cliqConfig = {
+    channelName: cliqArgs.channel || cliqArgs.channelName || process.env.ZOHO_CHANNEL_NAME || 'automationreports',
+    reportDir: cliqArgs.reportDir || './allure-single-file-report',
+    reportFile: cliqArgs.reportFile || 'index.html',
+    testEnv: cliqArgs.env || cliqArgs.testEnv || cliqArgs.environment || 'API Testing',
+    botName: cliqArgs.botName || 'Mira API Test Automation Summary',
+    botImage: cliqArgs.botImage || 'https://static-asset.inc42.com/logo/educational-initiatives.png',
+    clientId: cliqArgs.clientId || process.env.ZOHO_CLIENT_ID || 'your-client-id',
+    clientSecret: cliqArgs.clientSecret || process.env.ZOHO_CLIENT_SECRET || 'your-client-secret',
+    refreshToken: cliqArgs.refreshToken || process.env.ZOHO_REFRESH_TOKEN || 'your-refresh-token'
+  };
+  
+  services.push([CliqService, cliqConfig]);
+  console.log('✅ Cliq service configured:', {
+    channel: cliqConfig.channelName,
+    testEnv: cliqConfig.testEnv,
+    reportDir: cliqConfig.reportDir
+  });
 } else {
   console.log('🔕 Cliq notification disabled');
 }

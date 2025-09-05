@@ -21,7 +21,7 @@ Feature: Device Management - Device Mapping & Retrieval
       Then the response status code should be 200
       And response should have the following properties:
         | message | already_mapped_msg |
-
+        
     Scenario: MIRA-1387 - Map Device to School - Verify invalid device ID returns 404
       Given map the device to school:
         | device_id | invalid_device_id_test |
@@ -30,7 +30,6 @@ Feature: Device Management - Device Mapping & Retrieval
         | status  | status_false              |
         | message | device_not_registered_msg |
       And response should have fields "code, correlationId"
-
     Scenario: MIRA-1384 - Map Device to School - Verify empty device ID returns 404
       Given map the device to school:
         | device_id | empty_str |
@@ -85,7 +84,7 @@ Feature: Device Management - Device Mapping & Retrieval
       And response should have the following properties:
      | message | Auth_token_error_Msg |
 
-    Scenario: MIRA-1383 - Map Device to School - Verify empty authentication token returns 401
+    Scenario: MIRA-1388 - Map Device to School - Verify empty authentication token returns 401
       Given register device
       Then the response status code should be 200
       When i have empty authentication token
@@ -111,6 +110,7 @@ Feature: Device Management - Device Mapping & Retrieval
       Then the response status code should be 200
       And response should have the following properties:
         | message | unmap_message |
+      And verify device is unmapped in database
 
 
     Scenario: MIRA-13008 - Unmap Device from School - Verify invalid authentication token returns 401
@@ -296,7 +296,7 @@ Feature: Device Management - Device Mapping & Retrieval
       And verify the device is mapped to the school in the database
 
     
-    Scenario: MIRA-1405 - Get Organisation Device - Empty device ID returns all devices
+    Scenario: MIRA-1411 - Get Organisation Device - Empty device ID returns all devices
       Given get the organization details for device:
         | device_id | empty_str |
       Then the response status code should be 200
@@ -328,7 +328,7 @@ Feature: Device Management - Device Mapping & Retrieval
         | message | resource_not_found_msg2 |
 
     
-    Scenario: MIRA-1404 - Get Organisation Device - Verify API Fails with another Organisation 
+    Scenario: MIRA-1409 - Get Organisation Device - Verify API Fails with another Organisation 
       Given register device
       Then the response status code should be 200
       When get the organization details for device:
@@ -346,7 +346,7 @@ Feature: Device Management - Device Mapping & Retrieval
       And get the organization details for device
       Then the response status code should be 401
       And response should have the following properties:
-        | message | @GetOrganisationDeviceDetails |
+        | message | Auth_token_error_Msg |
 
     Scenario: MIRA-1502 - Get Organisation Device - Verify empty authentication token returns 401
       Given register device
@@ -366,5 +366,5 @@ Feature: Device Management - Device Mapping & Retrieval
       Then the response status code should be 404
       And response should have the following properties:
         | status  | status_false              |
-        | message | device_notfound_error_msg |
+        | message | no_device_error_msg |
       And response should have fields "code, correlationId"       

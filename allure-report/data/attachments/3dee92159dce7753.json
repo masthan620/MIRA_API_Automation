@@ -1,0 +1,13 @@
+{
+  "unique_device_id": "q6mxkszykc",
+  "mobile_number": "9876543210",
+  "country_code": "+91",
+  "otp_verified": true,
+  "device_configuration": {
+    "model": "Pixel 5",
+    "os_version": "Android 12",
+    "battery": "5000mah",
+    "name": "Automation device"
+  },
+  "app_version": "1.2.3"
+}

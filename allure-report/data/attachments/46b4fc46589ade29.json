@@ -1,0 +1,14 @@
+{
+  "message": "User mapping updated successfully.",
+  "success": [
+    {
+      "user_id": "8000004880",
+      "device_id": "R0396F"
+    },
+    {
+      "user_id": "3000004895",
+      "device_id": "R0396F"
+    }
+  ],
+  "failure": []
+}

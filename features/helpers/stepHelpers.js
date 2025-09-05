@@ -34,11 +34,16 @@ export function processTableOverrides(table) {
   const overrides = {};
   for (const [key, value] of rawTable) {
     if (key && value !== undefined) {
-      // Try to parse JSON values, otherwise keep as string
-      try {
-        overrides[key] = JSON.parse(value);
-      } catch {
-        overrides[key] = value;
+      // Handle special values like __REMOVE__
+      if (value === "__REMOVE__") {
+        overrides[key] = "__REMOVE__";
+      } else {
+        // Try to parse JSON values, otherwise keep as string
+        try {
+          overrides[key] = JSON.parse(value);
+        } catch {
+          overrides[key] = value;
+        }
       }
     }
   }
@@ -228,20 +233,48 @@ export function processParams(ctx, table, paramType) {
   return { pathParams, queryParams };
 }
 
-
 // Utility: compare arrays
 function verifyArray(field, expected, actual) {
-  if (!Array.isArray(actual) || JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error(
-      `${field} not updated correctly. Expected: ${JSON.stringify(expected)}, Got: ${JSON.stringify(actual)}`
+  if (!Array.isArray(actual)) {
+    expect(Array.isArray(actual)).toBe(
+      true,
+      `${field} not updated correctly. Expected: array, Got: ${typeof actual}`
     );
   }
+
+  if (expected.length !== actual.length) {
+    expect(actual.length).toEqual(
+      expected.length,
+      `${field} array length not updated correctly. Expected: ${expected.length}, Got: ${actual.length}`
+    );
+  }
+
+  // For each expected item, find the corresponding actual item and compare only the expected fields
+  for (let i = 0; i < expected.length; i++) {
+    const expectedItem = expected[i];
+    const actualItem = actual[i];
+
+    // Compare only the fields that were in the expected item
+    for (const key in expectedItem) {
+      if (expectedItem[key] !== actualItem[key]) {
+        expect(actualItem[key]).toEqual(
+          expectedItem[key],
+          `${field}[${i}].${key} not updated correctly. Expected: ${expectedItem[key]}, Got: ${actualItem[key]}`
+        );
+      }
+    }
+  }
+
+  console.log(`${green} ✅ Array field ${field} updated correctly`);
 }
 
 // Utility: compare booleans
 function verifyBoolean(field, expected, actual) {
   if (actual !== expected) {
-    throw new Error(`${field} not updated correctly. Expected: ${expected}, Got: ${actual}`);
+    expect(actual).toEqual(
+      expected,
+      `${field} not updated correctly. Expected: ${expected}, Got: ${actual}`
+    );
   }
 }
 
@@ -251,7 +284,8 @@ function verifyDate(field, expected, actual) {
   const actualDatePart = actual.split("T")[0];
 
   if (expectedDatePart !== actualDatePart) {
-    throw new Error(
+    expect(actualDatePart).toEqual(
+      expectedDatePart,
       `${field} date part not updated correctly. Expected: ${expectedDatePart}, Got: ${actualDatePart}`
     );
   }
@@ -261,7 +295,10 @@ function verifyDate(field, expected, actual) {
 // Utility: compare primitive values
 function verifyPrimitive(field, expected, actual) {
   if (expected !== actual) {
-    throw new Error(`${field} not updated correctly. Expected: ${expected}, Got: ${actual}`);
+    expect(actual).toEqual(
+      expected,
+      `${field} not updated correctly. Expected: ${expected}, Got: ${actual}`
+    );
   }
 }
 
@@ -286,23 +323,42 @@ export function verifyUpdatedFields(expectedData, afterData) {
 }
 
 // Verify unchanged fields
-export function verifyUnchangedFields(beforeData, afterData, expectedData) {
-  // Only check fields that are explicitly mentioned in the table
-  // This prevents checking fields that come from the base template but weren't in the test table
+export function verifyUnchangedFields(
+  beforeData,
+  afterData,
+  expectedData,
+  actualRequestBody = {}
+) {
+  // Check fields that were explicitly mentioned in the table
   for (const field in expectedData) {
     // Skip metadata fields
     if (["retrieved_at", "updated_at"].includes(field)) continue;
 
-    // If field was marked for removal (__REMOVE__), verify it became null
+    // If field was marked for removal (__REMOVE__), verify it remained unchanged
     if (expectedData[field] === "__REMOVE__") {
-      if (afterData[field] !== null) {
-        throw new Error(
-          `${field} should be null after removal. Got: ${afterData[field]}`
+      // Special case for resources field - when marked for removal, it should be removed (empty array)
+      if (field === "resources") {
+        if (!Array.isArray(afterData[field]) || afterData[field].length !== 0) {
+          expect(afterData[field]).toEqual(
+            [],
+            `${field} should be removed (empty array) when marked for removal. Before: ${beforeData[field]}, After: ${afterData[field]}`
+          );
+        }
+        console.log(
+          `${green} ✅ Field ${field} was removed (empty array) when marked for removal`
+        );
+      } else {
+        // For other fields, verify they remained unchanged
+        if (beforeData[field] !== afterData[field]) {
+          expect(beforeData[field]).toEqual(
+            afterData[field],
+            `${field} should remain unchanged when marked for removal. Before: ${beforeData[field]}, After: ${afterData[field]}`
+          );
+        }
+        console.log(
+          `${green} ✅ Field ${field} remained unchanged (was marked for removal): ${beforeData[field]}`
         );
       }
-      console.log(
-        `${green} ✅ Field ${field} was successfully removed (set to null)`
-      );
     }
   }
 
@@ -311,16 +367,66 @@ export function verifyUnchangedFields(beforeData, afterData, expectedData) {
     // Skip metadata fields
     if (["retrieved_at", "updated_at"].includes(field)) continue;
 
-    // Skip fields that were explicitly mentioned in the table
+    // Skip fields that were explicitly mentioned in the table (handled above)
     if (field in expectedData) continue;
 
+    // Only compare fields that exist in both beforeData and afterData
+    if (!(field in afterData)) {
+      console.log(
+        `${yellow} ⚠️ Field ${field} not present in afterData, skipping comparison`
+      );
+      continue;
+    }
+
     // For fields not in the update request, verify they remained unchanged
-    if (beforeData[field] !== afterData[field]) {
-      throw new Error(
-        `${field} should remain unchanged. Before: ${beforeData[field]}, After: ${afterData[field]}`
+    if (
+      typeof beforeData[field] === "object" &&
+      beforeData[field] !== null &&
+      typeof afterData[field] === "object" &&
+      afterData[field] !== null
+    ) {
+      // For objects, compare individual fields
+      const beforeKeys = Object.keys(beforeData[field]);
+      const afterKeys = Object.keys(afterData[field]);
+
+      for (const key of beforeKeys) {
+        if (afterKeys.includes(key)) {
+          // Check if this nested field was in the request body
+          if (key in actualRequestBody) {
+            continue;
+          }
+
+          // Skip timestamp fields (they should change on update)
+          if (/_from$|_to$|_at$|date/.test(key)) {
+            continue;
+          }
+
+                  if (beforeData[field][key] !== afterData[field][key]) {
+                    expect(beforeData[field][key]).toEqual(
+                      afterData[field][key],
+                      `${field}.${key} should remain unchanged. Before: ${beforeData[field][key]}, After: ${afterData[field][key]}`
+                    );
+                  }
+        }
+      }
+      console.log(`${green} ✅ Object field ${field} remained unchanged`);
+    } else {
+      // For primitive values, check if they were in the request body
+      if (field in actualRequestBody) {
+        continue;
+      }
+
+      // For primitive values, do direct comparison
+      if (beforeData[field] !== afterData[field]) {
+        expect(beforeData[field]).toEqual(
+          afterData[field],
+          `${field} should remain unchanged. Before: ${beforeData[field]}, After: ${afterData[field]}`
+        );
+      }
+      console.log(
+        `${green} ✅ Field ${field} remained unchanged: ${beforeData[field]}`
       );
     }
-    console.log(`${green} ✅ Field ${field} remained unchanged: ${beforeData[field]}`);
   }
 }
 

@@ -1,6 +1,7 @@
 @reg_device
 Feature: Save Device Information
 
+  @check
   Scenario: MIRA-1657 - Verify Successful Registration of a Device with Valid Input Data
     Given register device
     Then the response status code should be 200
@@ -8,7 +9,6 @@ Feature: Save Device Information
     Then response should have fields "device_id, message"
     Then verify the device ID from response exists in database
     Then verify that all device input values are correctly stored in the database
-    #And the response time should be less than 2000 milliseconds
     
   Scenario Outline: MIRA-1658 - Verify API Fails with Invalid Country Code <test_case_id>
     Given register device:

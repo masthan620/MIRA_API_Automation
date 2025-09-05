@@ -3,7 +3,7 @@ import { Then, When } from '@wdio/cucumber-framework';
 import { expect } from 'chai';
 import serviceFactory from '../../services/service-factory.js';
 import testData from '../../test-data/testData.json';
-import { red, green, yellow } from '../../utils/apiClient.js';
+import { green, yellow } from '../../utils/apiClient.js';
 /**
  * Verify that a device ID exists in the database
  */

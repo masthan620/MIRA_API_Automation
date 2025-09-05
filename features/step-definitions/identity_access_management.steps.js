@@ -20,6 +20,7 @@ import {
   resolveRequestId,
   authenticateUser,
 } from "../helpers/testHelpers.js";
+import { fetchUsername, getOrganisationCode } from "../helpers/userResolver.js";
 
 Given(
   /^Send an OTP request using "([^"]*)" request body$/,
@@ -47,7 +48,7 @@ Given(
 
 Given(
   /^as a student, I send a Reset Password request for user "([^"]*)"$/,
-  async function (username) {
+  async function (usernameVariable) {
     const baseKey = "passwordResetToAdmin/Teacher";
 
     if (!process.env.PASSWORD_RESET_REQUEST_ENDPOINT) {
@@ -55,16 +56,35 @@ Given(
         "PASSWORD_RESET_REQUEST_ENDPOINT environment variable is not defined"
       );
     }
-    const endpoint = buildEndpoint(
-      process.env.PASSWORD_RESET_REQUEST_ENDPOINT,
-      { username }
-    );
+    let endpoint = process.env.PASSWORD_RESET_REQUEST_ENDPOINT;
     const requestBody = getFinalRequestBody(baseKey);
+    const username = fetchUsername(usernameVariable);
+    if (username) {
+      // fetch user id based on username
+      const usersService = serviceFactory.getUsersService("iamdb");
+      const dbUser = await usersService.getUserByUsername(
+        username.toLowerCase()
+      );
+      if(!dbUser){
+        requestBody.user_id = "invalid_user_id";
+      }else{
+        const userProfileService = serviceFactory.fetchUserProfileByUserID();
+        const user_profile = await userProfileService.getUserByUserID(
+          dbUser.user_id
+        );
+  
+        requestBody.user_id = dbUser.user_id;
+        requestBody.requested_by = user_profile.user_type;
+      }
 
-    console.log(
-      `${green} Final Request Body →`,
-      JSON.stringify(requestBody, null, 2)
-    );
+      console.log(
+        `${green} Final Request Body →`,
+        JSON.stringify(requestBody, null, 2)
+      );
+    } else {
+      requestBody.user_id = "invalid_user_id";
+      console.log(`${red} username is empty`, username);
+    }
 
     await makeTimedRequest(this, "post", endpoint, requestBody, {}, false);
   }
@@ -72,21 +92,29 @@ Given(
 
 Given(
   /^as (a|an) (teacher|admin|student), I send a Reset Password request for user "([^"]*)":$/,
-  async function (article, user_type, username, table) {
+  async function (article, user_type, username_variable, table) {
     const baseKey = "passwordResetToAdmin/Teacher";
-
+    const username = fetchUsername(username_variable)
+    const requestBody = getFinalRequestBody(baseKey, table);
     if (!process.env.PASSWORD_RESET_REQUEST_ENDPOINT) {
       throw new Error(
         "PASSWORD_RESET_REQUEST_ENDPOINT environment variable is not defined"
       );
     }
+    // fetch user id based on username
+    const usersService = serviceFactory.getUsersService("iamdb");
+    const dbUser = await usersService.getUserByUsername(username.toLowerCase());
+    if(!dbUser){
+      requestBody.user_id = "invalid_user_id";
+    }else{
+      const userProfileService = serviceFactory.fetchUserProfileByUserID();
+      const user_profile = await userProfileService.getUserByUserID(dbUser.user_id);
+      requestBody.requested_by = user_profile.user_type;
+      requestBody.user_id = dbUser.user_id;
+    }
 
-    const endpoint = buildEndpoint(
-      process.env.PASSWORD_RESET_REQUEST_ENDPOINT,
-      { username }
-    );
-    const requestBody = getFinalRequestBody(baseKey, table);
-
+    let endpoint = process.env.PASSWORD_RESET_REQUEST_ENDPOINT;
+    
     console.log(
       `${green} Final Request Body →`,
       JSON.stringify(requestBody, null, 2)
@@ -98,19 +126,21 @@ Given(
 
 Given(
   /^as an admin, get all password reset requests for school "([^"]*)"(?: with limit "([^"]*)" and page "([^"]*)")?(?: and store user_id and request_id for the user "([^"]*)" with status "([^"]*)")?$/,
-  async function (schoolCode, limit, page, username, status) {
+  async function (organisation_code_variable, limit, page, username_variable, status) {
     if (!process.env.PASSWORD_RESET_LIST_ENDPOINT) {
       throw new Error(
         "PASSWORD_RESET_LIST_ENDPOINT environment variable is not defined"
       );
     }
 
+    let organisation_code = getOrganisationCode(organisation_code_variable);
+    let username = fetchUsername(username_variable);
     // Apply defaults
     limit = limit || 1000;
     page = page || 1;
 
     let endpoint = buildEndpoint(process.env.PASSWORD_RESET_LIST_ENDPOINT, {
-      schoolCode,
+      organisation_code,
     });
     endpoint = addQueryParams(endpoint, { limit, page });
     await waitFor(5000);
@@ -166,8 +196,9 @@ Given(
 
 Given(
   /^as (a|an) (user|teacher|admin), I reset password for "([^"]*)"$/,
-  async function (article, user_type, username) {
+  async function (article, user_type, username_variable) {
     const baseKey = "resetPasswordWithUserId";
+    const username = fetchUsername(username_variable);
 
   if (!process.env.USER_PASSWORD_RESET_ENDPOINT) {
     throw new Error(
@@ -285,7 +316,8 @@ Given(
 
 Then(
   /^a pending password reset request should exist for user "([^"]*)" in DB$/,
-  async function (username) {
+  async function (username_variable) {
+    const username = fetchUsername(username_variable);
     const usersService = serviceFactory.getUsersService("iamdb");
     const user = await usersService.getUserByUsername(username);
 
@@ -330,7 +362,8 @@ async function verifyPasswordResetRequestCreated(testContext, userId) {
   }
 }
 
-Given(/^i verify user "([^"]*)"$/, async function (username) {
+Given(/^i verify user "([^"]*)"$/, async function (username_variable) {
+  const username = fetchUsername(username_variable);
   const endpoint = buildEndpoint(process.env.USER_VERIFICATION_ENDPOINT, {
     username,
   });
@@ -351,19 +384,12 @@ Then(/^validate response data against database$/, async function () {
 
 Given(
   /^i login as a (teacher|student|admin) using user "([^"]*)"$/,
-  async function (user_type, usernameOrPlaceholder) {
-    let actualUsername, password;
-    if (
-      usernameOrPlaceholder.startsWith("{") &&
-      usernameOrPlaceholder.endsWith("}")
-    ) {
-      const placeholder = usernameOrPlaceholder.slice(1, -1);
-      const index =
-        parseInt(placeholder.replace("mapped_student_", "")) - 1 || 0;
-      actualUsername = this.mappedStudentUsernames[index];
-    } else {
-      actualUsername = usernameOrPlaceholder;
-    }
+  async function (user_type, userVariable) {
+    // Resolve username from variable (e.g., "admin" -> "pooja.reddy487")
+    const actualUsername = fetchUsername(userVariable);
+
+    // Use stored password if available, otherwise use default admin password
+    let password;
     if (
       global.testData["user_passwords"] &&
       global.testData["user_passwords"][actualUsername]

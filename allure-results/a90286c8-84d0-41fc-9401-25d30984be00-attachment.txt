@@ -1,0 +1,1 @@
+https://nav-backend.ei-poc.study/api/device-management/v1/organisations/801234/devices/R0396F/mapping

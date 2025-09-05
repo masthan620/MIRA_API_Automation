@@ -13,6 +13,7 @@ reset,
   makeTimedRequest,
 } from "../../utils/apiClient.js";
 import { generateUniqueId1 } from "../../utils/generateRandomData.js";
+import AllureHelper from "../../utils/allure-helper.js";
 // Function to load request body from JSON (keep only one declaration)
 const loadRequestBody = (key) => {
     const dataPath = path.resolve('./test-data/apiRequestBodies.json');
@@ -70,8 +71,19 @@ Given(/^register device$/, async function () {
     const headers = buildAuthHeaders(authToken);
     console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
-    this.response = await apiClient.post(endpoint, this.requestBody, headers);
+    this.response = await makeTimedRequest(this, "post", endpoint, this.requestBody, headers);
     this.regResponse = this.response;
+    
+    // Simple log capture for Allure
+    const stepLogs = [
+        `Endpoint: ${endpoint}`,
+        `Request Body: ${JSON.stringify(this.requestBody, null, 2)}`,
+        `Auth Token: ${authToken ? 'Present' : 'Not set'}`,
+        `Response Status: ${this.response?.status}`,
+        `Device ID: ${this.response?.data?.device_id || 'Not found'}`
+    ];
+    
+    AllureHelper.attachConsoleLogs("Device Registration", stepLogs);
 });
 Given(/^register device:$/, async function (table) {
     const endpoint = process.env.DEVICE_REGISTER_ENDPOINT;
@@ -115,6 +127,7 @@ Given(/^map the device to school$/, async function () {
     console.log(`${yellow}🔗 Mapping device ${deviceId} to organization ${organisationCode}`);
     console.log(`${yellow}📍 Endpoint: ${endpoint}`);
     
+    // Use empty object as request body for device mapping (no additional data needed)
     const requestBody = {};
     console.log("Request Body →", JSON.stringify(requestBody, null, 2));
     
@@ -126,7 +139,7 @@ Given(/^map the device to school$/, async function () {
     console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
     try {
-        this.response = await apiClient.post(endpoint, requestBody, headers);
+        this.response = await makeTimedRequest(this, "post", endpoint, requestBody, headers);
     } catch (error) {
         this.response = error.response;
     }
@@ -172,7 +185,7 @@ Given(/^map the device to school:$/, async function (table) {
     console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
     try {
-        this.response = await apiClient.post(endpoint, requestBody, headers);
+        this.response = await makeTimedRequest(this, "post", endpoint, requestBody, headers);
     } catch (error) {
         this.response = error.response;
     }
@@ -209,7 +222,7 @@ Given(/^get device details$/, async function () {
     console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
     try {
-        this.response = await apiClient.get(endpoint, headers);
+        this.response = await makeTimedRequest(this, "get", endpoint, null, headers);
     } catch (error) {
         this.response = error.response;
     }
@@ -257,7 +270,7 @@ Given(/^get device details:$/, async function (table) {
     console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
     try {
-        this.response = await apiClient.get(endpoint, headers);
+        this.response = await makeTimedRequest(this, "get", endpoint, null, headers);
     } catch (error) {
         this.response = error.response;
     }
@@ -304,7 +317,7 @@ Given(/^get the organization details for device$/, async function () {
     console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
     try {
-        this.response = await apiClient.get(endpoint, headers);
+        this.response = await makeTimedRequest(this, "get", endpoint, null, headers);
     } catch (error) {
         this.response = error.response;
     }
@@ -365,7 +378,7 @@ Given(/^get the organization details for device:$/, async function (table) {
     console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
     try {
-        this.response = await apiClient.get(endpoint, headers);
+        this.response = await makeTimedRequest(this, "get", endpoint, null, headers);
     } catch (error) {
         this.response = error.response;
     }
@@ -403,7 +416,7 @@ Given(/^unmap the device from school$/, async function () {
     console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
     try {
-        this.response = await apiClient.delete(endpoint, headers);
+        this.response = await makeTimedRequest(this, "delete", endpoint, null, headers);
     } catch (error) {
         this.response = error.response;
     }
@@ -446,7 +459,7 @@ Given(/^unmap the device from school:$/, async function (table) {
     console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
     try {
-        this.response = await apiClient.delete(endpoint, headers);
+        this.response = await makeTimedRequest(this, "delete", endpoint, null, headers);
     } catch (error) {
         this.response = error.response;
     }
@@ -496,7 +509,7 @@ Given(/^map students to device$/, async function () {
     console.log("Request Headers →", JSON.stringify(headers, null, 2));
     
     try {
-        this.response = await apiClient.post(endpoint, requestBody, headers);
+        this.response = await makeTimedRequest(this, "post", endpoint, requestBody, headers);
     } catch (error) {
         this.response = error.response;
     }
@@ -555,11 +568,118 @@ Given(/^map students to device:$/, async function (table) {
     }
     console.log("Request Headers →", JSON.stringify(headers, null, 2)); 
     try {
-        this.response = await apiClient.post(endpoint, requestBody, headers);
+        this.response = await makeTimedRequest(this, "post", endpoint, requestBody, headers);
     } catch (error) {
         this.response = error.response;
     }
     this.deviceId = deviceId;
     this.mappedUserIds = userIds;
+    this.sentData = { device_id: deviceId, organisation_code: organisationCode, user_ids: userIds };
+});
+
+// Unmap students from device WITHOUT overrides (works for both Given and Then)
+Given(/^unmap students (?:from|to) device$/, async function () {
+    const deviceId = this.deviceId || 
+                     this.regResponse?.data?.device_id || 
+                     this.regResponse?.body?.data?.device_id || 
+                     this.regResponse?.data?.data?.device_id;
+    
+    const organisationCode = testData["organisation_code"];
+    
+    if (!deviceId) {
+        console.error("Available response structure:", JSON.stringify(this.regResponse, null, 2));
+        throw new Error("deviceId not found from previous registration step.");
+    }
+    
+    let endpoint = process.env.UNMAP_STUDENTS_FROM_DEVICE_ENDPOINT;
+    endpoint = endpoint.replace('{organisation_code}', organisationCode);
+    endpoint = endpoint.replace('{device_id}', deviceId);
+    
+    console.log(`${yellow}🔗 Unmapping students from device ${deviceId} in organization ${organisationCode}`);
+    console.log(`${yellow}📍 Endpoint: ${endpoint}`);
+    
+    const requestBody = {
+        user_ids: this.mappedUserIds || testData["student_user_ids"]
+    };
+    
+    console.log("Request Body →", JSON.stringify(requestBody, null, 2));
+    
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`${yellow}🔑 Using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = buildAuthHeaders(authToken);
+    console.log("Request Headers →", JSON.stringify(headers, null, 2));
+    
+    try {
+        this.response = await makeTimedRequest(this, "delete", endpoint, requestBody, headers);
+    } catch (error) {
+        this.response = error.response;
+    }
+    
+    this.deviceId = deviceId;
+    this.unmappedUserIds = this.mappedUserIds || testData["student_user_ids"];
+    this.sentData = { device_id: deviceId, organisation_code: organisationCode, user_ids: this.unmappedUserIds };
+});
+
+// Unmap students from device WITH overrides (works for both Given and Then)
+Given(/^unmap students (?:from|to) device:$/, async function (table) {
+    let deviceId = this.deviceId || 
+                   this.regResponse?.data?.device_id || 
+                   this.regResponse?.body?.data?.device_id || 
+                   this.regResponse?.data?.data?.device_id;
+    
+    let organisationCode = testData["organisation_code"];
+    let userIds = this.mappedUserIds || testData["student_user_ids"];
+    
+    const overrides = Object.fromEntries(table.raw().map(([k, v]) => [k, v]));
+    
+    for (const key in overrides) {
+        const value = testData[overrides[key]] !== undefined ? testData[overrides[key]] : overrides[key];
+        
+        if (key === 'device_id') {
+            deviceId = value;
+        } else if (key === 'organisation_code') {
+            organisationCode = value;
+        } else if (key === 'user_ids') {
+            try {
+                if (testData[overrides[key]]) {
+                    userIds = testData[overrides[key]];
+                } else {
+                    userIds = JSON.parse(overrides[key]);
+                }
+            } catch (error) {
+                userIds = [overrides[key]];
+            }
+        }
+    }
+    
+    let endpoint = process.env.UNMAP_STUDENTS_FROM_DEVICE_ENDPOINT;
+    endpoint = endpoint.replace('{organisation_code}', organisationCode);
+    endpoint = endpoint.replace('{device_id}', deviceId);
+    
+    console.log(`${yellow}🔗 Unmapping students from device ${deviceId} in organization ${organisationCode}`);
+    console.log(`${yellow}📍 Final Endpoint: ${endpoint}`);
+    console.log(`${yellow}👥 User IDs: ${JSON.stringify(userIds)}`);
+    
+    const requestBody = {
+        user_ids: userIds
+    };
+    
+    console.log("Request Body →", JSON.stringify(requestBody, null, 2));
+    
+    const authToken = this.authToken !== undefined ? this.authToken : process.env.ACCESS_TOKEN;
+    console.log(`${yellow}🔑 Using auth token: ${authToken || 'null/empty'}`);
+    
+    const headers = buildAuthHeaders(authToken);
+    console.log("Request Headers →", JSON.stringify(headers, null, 2));
+    
+    try {
+        this.response = await makeTimedRequest(this, "delete", endpoint, requestBody, headers);
+    } catch (error) {
+        this.response = error.response;
+    }
+    
+    this.deviceId = deviceId;
+    this.unmappedUserIds = userIds;
     this.sentData = { device_id: deviceId, organisation_code: organisationCode, user_ids: userIds };
 });
